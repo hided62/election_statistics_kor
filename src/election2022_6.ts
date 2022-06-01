@@ -452,7 +452,8 @@ jQuery(function ($) {
 
     constructor(
       public readonly 필터: t필터,
-      public readonly 구별키: (keyof t필터)[]
+      public readonly 그룹키: (keyof t필터)[],
+      public readonly 세부키: (keyof t필터)[]
     ) {
       this.$표 = $("#table01");
 
@@ -482,18 +483,29 @@ jQuery(function ($) {
       return JSON.stringify(stores);
     }
 
-    protected getGroupKey(): string {
+    protected getCategoryKey(): string {
       const storeKey: string[] = [];
-      for (const key of this.구별키) {
+      for (const key of this.그룹키) {
         storeKey.push(this.필터[key]);
       }
       storeKey.pop();
       return storeKey.join("_");
     }
 
+    protected getGroupKey(): string {
+      const storeKey: string[] = [];
+      for (const key of this.그룹키) {
+        storeKey.push(this.필터[key]);
+      }
+      return storeKey.join("_");
+    }
+
     protected getGroupDetailKey(): string {
       const storeKey: string[] = [];
-      for (const key of this.구별키) {
+      for (const key of this.그룹키) {
+        storeKey.push(this.필터[key]);
+      }
+      for (const key of this.세부키) {
         storeKey.push(this.필터[key]);
       }
       return storeKey.join("_");
@@ -617,13 +629,14 @@ jQuery(function ($) {
       let date = new Date();
       총계.시간 = date.toLocaleTimeString("en-GB");
 
-      const groupKey = this.getGroupKey();
+      const categoryKey = this.getCategoryKey();
+      //const groupKey = this.getGroupKey();
       const 지역목록 = JSON.parse(
-        subsNull(localStorage.getItem(`일반_목록_${groupKey}`), "{}")
+        subsNull(localStorage.getItem(`일반_목록_${categoryKey}`), "{}")
       );
       const storeKey = this.getStoreKey();
       지역목록[storeKey] = [Array.from(headerInfo.entries()), date];
-      localStorage.setItem(`일반_목록_${groupKey}`, JSON.stringify(지역목록));
+      localStorage.setItem(`일반_목록_${categoryKey}`, JSON.stringify(지역목록));
 
       console.log("계", 총계);
       localStorage.setItem(`일반_${storeKey}`, JSON.stringify(총계));
@@ -677,6 +690,10 @@ jQuery(function ($) {
           return;
         }
 
+        if (투표구.구분 == "계") {
+          return;
+        }
+
         const is사전투표 = subsNull<boolean>(
           구분1[투표구.읍면동명],
           subsNull(구분2[투표구.구분], false)
@@ -697,9 +714,10 @@ jQuery(function ($) {
       });
 
       const [본투표수, 사전투표수] = 총투표수[필터.도시][필터.구시군];
-      console.log(본투표수, 사전투표수);
       const 본개표율 = 총계_본.계 / 본투표수;
       const 사전개표율 = 총계_사전.계 / 사전투표수;
+      console.log(본투표수, 본개표율, 사전투표수, 사전개표율);
+
 
       for (const key of Object.keys(총계_사전.items)) {
         총계_사전.items[key] /= 사전개표율;
@@ -717,16 +735,17 @@ jQuery(function ($) {
 
       console.log(필터, 총계_사전, 총계_본);
 
+      const categoryKey = this.getCategoryKey();
       const groupKey = this.getGroupKey();
       const groupDetailKey = this.getGroupDetailKey();
       const 지역목록 = JSON.parse(
-        subsNull(localStorage.getItem(`개표단위_목록_${groupKey}`), "{}")
+        subsNull(localStorage.getItem(`개표단위_목록_${categoryKey}`), "{}")
       );
-      지역목록[groupDetailKey] = Array.from(headerInfo.entries());
+      지역목록[groupKey] = Array.from(headerInfo.entries());
 
       const 지역세부목록 = JSON.parse(
         subsNull(
-          localStorage.getItem(`개표단위_세부목록_${groupDetailKey}`),
+          localStorage.getItem(`개표단위_세부목록_${groupKey}`),
           "{}"
         )
       );
@@ -734,11 +753,11 @@ jQuery(function ($) {
       지역세부목록[storeKey] = date;
 
       localStorage.setItem(
-        `개표단위_목록_${groupKey}`,
+        `개표단위_목록_${categoryKey}`,
         JSON.stringify(지역목록)
       );
       localStorage.setItem(
-        `개표단위_세부목록_${groupDetailKey}`,
+        `개표단위_세부목록_${groupKey}`,
         JSON.stringify(지역세부목록)
       );
 
@@ -770,7 +789,7 @@ jQuery(function ($) {
       for (const [지역키, [rawHeader]] of Object.entries(지역목록)) {
         const 지역구분 = JSON.parse(지역키) as t필터;
         const 지역이름: string[] = [];
-        for (const key of this.구별키) {
+        for (const key of this.그룹키) {
           if (key == "선거명") {
             continue;
           }
@@ -828,17 +847,18 @@ jQuery(function ($) {
       //const 총계: t총계 = { items: {}, 계: 0 };
 
       this.$표.append("<tr><td></td></tr>");
+      const categoryKey = this.getCategoryKey();
       const groupKey = this.getGroupKey();
       const 지역목록: Record<string, [number, string][]> = JSON.parse(
-        subsNull(localStorage.getItem(`개표단위_목록_${groupKey}`), "{}")
+        subsNull(localStorage.getItem(`개표단위_목록_${categoryKey}`), "{}")
       );
       console.log("지역목록", 지역목록);
       if (!지역목록) {
         return;
       }
 
-      for (const [groupDetailKey, rawHeader] of Object.entries(지역목록)) {
-        const 지역이름 = groupDetailKey.split("_");
+      for (const [groupKey, rawHeader] of Object.entries(지역목록)) {
+        const 지역이름 = groupKey.split("_");
         지역이름.shift();
 
         const headerInfo: RuleSet = new Map(rawHeader);
@@ -846,14 +866,13 @@ jQuery(function ($) {
 
         const 지역세부목록 = JSON.parse(
           subsNull(
-            localStorage.getItem(`개표단위_세부목록_${groupDetailKey}`),
+            localStorage.getItem(`개표단위_세부목록_${groupKey}`),
             "{}"
           )
         );
         if (!Object.keys(지역세부목록).length) {
           continue;
         }
-        console.log("개표단위", groupDetailKey);
 
         const 세부_사전_계: t총계 = { items: {}, 계: 0 };
         const 세부_본_계: t총계 = { items: {}, 계: 0 };
@@ -866,6 +885,7 @@ jQuery(function ($) {
         this.$표.append(toTr(tHeader, headerInfo, 지역이름.join("\n")));
 
         for (const storeKey of Object.keys(지역세부목록)) {
+          console.log("개표단위", storeKey);
           const 세부_사전: t총계 = JSON.parse(
             localStorage.getItem(`개표단위_사전_${storeKey}`) ?? "{}"
           );
@@ -922,7 +942,7 @@ jQuery(function ($) {
     //다른 모드는 다른 코드 참고
     if (필터.선거명 == "시도지사선거") {
       if (필터.타입 == "개표진행상황") {
-        const obj = new ElectionV(필터, ["선거명", "도시"]);
+        const obj = new ElectionV(필터, ["선거명", "도시"], []);
         if (필터.도시 == "") {
           obj.display개표단위();
           obj.display일반();
@@ -931,7 +951,7 @@ jQuery(function ($) {
         }
       }
       if (필터.타입 == "개표단위별개표결과") {
-        const obj = new ElectionV(필터, ["선거명", "도시"]);
+        const obj = new ElectionV(필터, ["선거명", "도시"], ["구시군"]);
         obj.parse개표단위();
       }
     } else {

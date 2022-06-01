@@ -1256,9 +1256,10 @@ jQuery(function($1) {
         return result;
     };
     class ElectionV {
-        constructor(필터, 구별키){
+        constructor(필터, 그룹키, 세부키){
             this.필터 = 필터;
-            this.구별키 = 구별키;
+            this.그룹키 = 그룹키;
+            this.세부키 = 세부키;
             this.$표 = $1("#table01");
             if (필터.타입 === "\uAC1C\uD45C\uC9C4\uD589\uC0C1\uD669") {
                 this.thQuery1 = "thead tr:eq(0) th";
@@ -1283,18 +1284,28 @@ jQuery(function($1) {
             }
             return JSON.stringify(stores);
         }
-        getGroupKey() {
+        getCategoryKey() {
             const storeKey = [];
-            for (const key of this.구별키){
+            for (const key of this.그룹키){
                 storeKey.push(this.필터[key]);
             }
             storeKey.pop();
             return storeKey.join("_");
         }
+        getGroupKey() {
+            const storeKey = [];
+            for (const key of this.그룹키){
+                storeKey.push(this.필터[key]);
+            }
+            return storeKey.join("_");
+        }
         getGroupDetailKey() {
             const storeKey = [];
-            for (const key of this.구별키){
+            for (const key of this.그룹키){
                 storeKey.push(this.필터[key]);
+            }
+            for (const key2 of this.세부키){
+                storeKey.push(this.필터[key2]);
             }
             return storeKey.join("_");
         }
@@ -1389,14 +1400,15 @@ jQuery(function($1) {
             });
             let date = new Date();
             총계.시간 = date.toLocaleTimeString("en-GB");
-            const groupKey = this.getGroupKey();
-            const 지역목록 = JSON.parse((0, _subsNull).subsNull(localStorage.getItem(`일반_목록_${groupKey}`), "{}"));
+            const categoryKey = this.getCategoryKey();
+            //const groupKey = this.getGroupKey();
+            const 지역목록 = JSON.parse((0, _subsNull).subsNull(localStorage.getItem(`일반_목록_${categoryKey}`), "{}"));
             const storeKey = this.getStoreKey();
             지역목록[storeKey] = [
                 Array.from(headerInfo.entries()),
                 date
             ];
-            localStorage.setItem(`일반_목록_${groupKey}`, JSON.stringify(지역목록));
+            localStorage.setItem(`일반_목록_${categoryKey}`, JSON.stringify(지역목록));
             console.log("\uACC4", 총계);
             localStorage.setItem(`일반_${storeKey}`, JSON.stringify(총계));
         }
@@ -1443,6 +1455,9 @@ jQuery(function($1) {
                 if (투표구.구분 == "\uC18C\uACC4") {
                     return;
                 }
+                if (투표구.구분 == "\uACC4") {
+                    return;
+                }
                 const is사전투표 = (0, _subsNull).subsNull(구분1[투표구.읍면동명], (0, _subsNull).subsNull(구분2[투표구.구분], false));
                 console.log("\uAC1C\uD45C\uB2E8\uC704", 투표구, is사전투표);
                 const 총계_대상 = is사전투표 ? 총계_사전 : 총계_본;
@@ -1455,30 +1470,31 @@ jQuery(function($1) {
                 }
             });
             const [본투표수, 사전투표수] = 총투표수[필터1.도시][필터1.구시군];
-            console.log(본투표수, 사전투표수);
             const 본개표율 = 총계_본.계 / 본투표수;
             const 사전개표율 = 총계_사전.계 / 사전투표수;
+            console.log(본투표수, 본개표율, 사전투표수, 사전개표율);
             for (const key of Object.keys(총계_사전.items)){
                 총계_사전.items[key] /= 사전개표율;
             }
             총계_사전.계 /= 사전개표율;
-            for (const key2 of Object.keys(총계_본.items)){
-                총계_본.items[key2] /= 본개표율;
+            for (const key3 of Object.keys(총계_본.items)){
+                총계_본.items[key3] /= 본개표율;
             }
             총계_본.계 /= 본개표율;
             let date = new Date();
             총계_사전.시간 = date.toLocaleTimeString("en-GB");
             총계_본.시간 = date.toLocaleTimeString("en-GB");
             console.log(필터1, 총계_사전, 총계_본);
+            const categoryKey = this.getCategoryKey();
             const groupKey = this.getGroupKey();
             const groupDetailKey = this.getGroupDetailKey();
-            const 지역목록 = JSON.parse((0, _subsNull).subsNull(localStorage.getItem(`개표단위_목록_${groupKey}`), "{}"));
-            지역목록[groupDetailKey] = Array.from(headerInfo.entries());
-            const 지역세부목록 = JSON.parse((0, _subsNull).subsNull(localStorage.getItem(`개표단위_세부목록_${groupDetailKey}`), "{}"));
+            const 지역목록 = JSON.parse((0, _subsNull).subsNull(localStorage.getItem(`개표단위_목록_${categoryKey}`), "{}"));
+            지역목록[groupKey] = Array.from(headerInfo.entries());
+            const 지역세부목록 = JSON.parse((0, _subsNull).subsNull(localStorage.getItem(`개표단위_세부목록_${groupKey}`), "{}"));
             const storeKey = this.getStoreKey();
             지역세부목록[storeKey] = date;
-            localStorage.setItem(`개표단위_목록_${groupKey}`, JSON.stringify(지역목록));
-            localStorage.setItem(`개표단위_세부목록_${groupDetailKey}`, JSON.stringify(지역세부목록));
+            localStorage.setItem(`개표단위_목록_${categoryKey}`, JSON.stringify(지역목록));
+            localStorage.setItem(`개표단위_세부목록_${groupKey}`, JSON.stringify(지역세부목록));
             localStorage.setItem(`개표단위_사전_${storeKey}`, JSON.stringify(총계_사전));
             localStorage.setItem(`개표단위_본_${storeKey}`, JSON.stringify(총계_본));
             console.log("\uC0AC\uC804", 총계_사전);
@@ -1500,7 +1516,7 @@ jQuery(function($1) {
             for (const [지역키, [rawHeader]] of Object.entries(지역목록)){
                 const 지역구분 = JSON.parse(지역키);
                 const 지역이름 = [];
-                for (const key of this.구별키){
+                for (const key of this.그룹키){
                     if (key == "\uC120\uAC70\uBA85") {
                         continue;
                     }
@@ -1544,22 +1560,22 @@ jQuery(function($1) {
             //총계는 대선에만?
             //const 총계: t총계 = { items: {}, 계: 0 };
             this.$표.append("<tr><td></td></tr>");
+            const categoryKey = this.getCategoryKey();
             const groupKey = this.getGroupKey();
-            const 지역목록 = JSON.parse((0, _subsNull).subsNull(localStorage.getItem(`개표단위_목록_${groupKey}`), "{}"));
+            const 지역목록 = JSON.parse((0, _subsNull).subsNull(localStorage.getItem(`개표단위_목록_${categoryKey}`), "{}"));
             console.log("\uC9C0\uC5ED\uBAA9\uB85D", 지역목록);
             if (!지역목록) {
                 return;
             }
-            for (const [groupDetailKey, rawHeader] of Object.entries(지역목록)){
-                const 지역이름 = groupDetailKey.split("_");
+            for (const [groupKey1, rawHeader] of Object.entries(지역목록)){
+                const 지역이름 = groupKey1.split("_");
                 지역이름.shift();
                 const headerInfo = new Map(rawHeader);
                 headerInfo.set(1, "\uC2DC\uAC04");
-                const 지역세부목록 = JSON.parse((0, _subsNull).subsNull(localStorage.getItem(`개표단위_세부목록_${groupDetailKey}`), "{}"));
+                const 지역세부목록 = JSON.parse((0, _subsNull).subsNull(localStorage.getItem(`개표단위_세부목록_${groupKey1}`), "{}"));
                 if (!Object.keys(지역세부목록).length) {
                     continue;
                 }
-                console.log("\uAC1C\uD45C\uB2E8\uC704", groupDetailKey);
                 const 세부_사전_계 = {
                     items: {},
                     계: 0
@@ -1578,6 +1594,7 @@ jQuery(function($1) {
                 }
                 this.$표.append(toTr(tHeader, headerInfo, 지역이름.join("\n")));
                 for (const storeKey of Object.keys(지역세부목록)){
+                    console.log("\uAC1C\uD45C\uB2E8\uC704", storeKey);
                     const 세부_사전 = JSON.parse(localStorage.getItem(`개표단위_사전_${storeKey}`) ?? "{}");
                     const 세부_본 = JSON.parse(localStorage.getItem(`개표단위_본_${storeKey}`) ?? "{}");
                     const target = [
@@ -1630,7 +1647,7 @@ jQuery(function($1) {
                 const obj = new ElectionV(필터1, [
                     "\uC120\uAC70\uBA85",
                     "\uB3C4\uC2DC"
-                ]);
+                ], []);
                 if (필터1.도시 == "") {
                     obj.display개표단위();
                     obj.display일반();
@@ -1642,6 +1659,8 @@ jQuery(function($1) {
                 const obj = new ElectionV(필터1, [
                     "\uC120\uAC70\uBA85",
                     "\uB3C4\uC2DC"
+                ], [
+                    "\uAD6C\uC2DC\uAD70"
                 ]);
                 obj.parse개표단위();
             }
