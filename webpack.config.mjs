@@ -16,6 +16,18 @@ const moduleInfos = {
     srcPrefix: 'https://raw.githubusercontent.com/hided62/election_statistics_kor/main/dist/',
     grant: ["none"],
   },
+  election2022_6: {
+    name: "개표진행 지방선거 2022",
+    namespace: "https://hided.net/",
+    version: "0.1",
+    description:
+      "개표 진행 상황을 보여줍니다. 각 시군구별 개별 개표율을 합산한 득표율을 보여줍니다.",
+    author: "Hide_D",
+    requires: ["jquery"],
+    match: ["http://info.nec.go.kr/electioninfo/electionInfo_report.xhtml"],
+    srcPrefix: 'https://raw.githubusercontent.com/hided62/election_statistics_kor/main/dist/',
+    grant: ["none"],
+  }
 };
 
 const requirePath = {
