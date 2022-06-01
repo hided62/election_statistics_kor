@@ -23,7 +23,7 @@ interface t개별투표 {
   계: number;
 }
 
-type t개표단위 = {
+type t일반단위 = {
   시도명: string;
   구시군명: string;
   선거구명: string;
@@ -33,9 +33,9 @@ type t개표단위 = {
   [key: string]: number | string;
 };
 
-type t투표구 = {
+type t개표단위 = {
   읍면동명: string;
-  투표구명: string;
+  구분: string;
   계: number;
   [key: string]: number | string;
 };
@@ -89,6 +89,8 @@ const invalidThKey = new Set([
   "무효투표수",
   "개표율",
   "계",
+  "구분",
+  "items",
 ]);
 
 type RuleSet = Map<number, string>;
@@ -398,7 +400,7 @@ jQuery(function ($) {
         result[key] = value;
         continue;
       }
-      if(typeof value === 'number'){
+      if (typeof value === "number") {
         result[key] = Math.floor(value);
       }
     }
@@ -439,7 +441,7 @@ jQuery(function ($) {
     return result;
   };
 
-  class ElectionV<T extends t개별투표> {
+  class ElectionV {
     protected $표: JQuery<HTMLElement>;
     protected headerInfo: RuleSet;
     protected partyInfo: Record<string, string>;
@@ -458,7 +460,7 @@ jQuery(function ($) {
         this.thQuery1 = "thead tr:eq(0) th";
         this.thQuery2 = "tbody tr:eq(0) td";
         this.thOffset = 0;
-      } else if (필터.타입 === "개표단위별 개표결과") {
+      } else if (필터.타입 === "개표단위별개표결과") {
         this.thQuery1 = "thead tr:eq(0) th";
         this.thQuery2 = "thead tr:eq(1) th";
         this.thOffset = 4;
@@ -486,6 +488,14 @@ jQuery(function ($) {
         storeKey.push(this.필터[key]);
       }
       storeKey.pop();
+      return storeKey.join("_");
+    }
+
+    protected getGroupDetailKey(): string {
+      const storeKey: string[] = [];
+      for (const key of this.구별키) {
+        storeKey.push(this.필터[key]);
+      }
       return storeKey.join("_");
     }
 
@@ -534,7 +544,7 @@ jQuery(function ($) {
       this.$표.find(this.thQuery1).each(function () {
         let $th = $(this);
         let text = 기호제거($th.text()).trim();
-        //console.log(text);
+        console.log(text);
         const colspan = parseInt(subsNull($th.attr("colspan"), "1"));
 
         if (text !== "") {
@@ -571,7 +581,7 @@ jQuery(function ($) {
 
       $표.find("tbody tr:gt(0)").each(function () {
         const $this = $(this);
-        const 투표구 = trToObj($this, headerInfo) as t개표단위;
+        const 투표구 = trToObj($this, headerInfo) as t일반단위;
 
         if (투표구.시도명 == "합계" || 투표구.구시군명 == "합계") {
           return;
@@ -619,7 +629,7 @@ jQuery(function ($) {
       localStorage.setItem(`일반_${storeKey}`, JSON.stringify(총계));
     }
 
-    protected parse개표단위() {
+    public parse개표단위() {
       console.log(필터.타입);
 
       const $표 = $("#table01");
@@ -642,6 +652,7 @@ jQuery(function ($) {
         총계_본.items[소속] = 0;
       }
 
+      //선거일투표
       const 구분1: Record<string, boolean> = {
         거소선상투표: true,
         재외투표: true,
@@ -656,22 +667,22 @@ jQuery(function ($) {
       //let 읍면동 = '';
       $표.find("tbody tr:gt(0)").each(function () {
         const $this = $(this);
-        const 투표구 = trToObj($this, headerInfo) as t투표구;
+        const 투표구 = trToObj($this, headerInfo) as t개표단위;
 
         if (투표구.읍면동명 == "합계") {
           return;
         }
 
-        if (투표구.투표구명 == "소계") {
+        if (투표구.구분 == "소계") {
           return;
         }
 
         const is사전투표 = subsNull<boolean>(
           구분1[투표구.읍면동명],
-          subsNull(구분2[투표구.투표구명], false)
+          subsNull(구분2[투표구.구분], false)
         );
 
-        //console.log('투표구', 투표구);
+        console.log("개표단위", 투표구, is사전투표);
 
         const 총계_대상 = is사전투표 ? 총계_사전 : 총계_본;
 
@@ -690,13 +701,15 @@ jQuery(function ($) {
       const 본개표율 = 총계_본.계 / 본투표수;
       const 사전개표율 = 총계_사전.계 / 사전투표수;
 
-      for (const key of Object.keys(총계_사전)) {
+      for (const key of Object.keys(총계_사전.items)) {
         총계_사전.items[key] /= 사전개표율;
       }
+      총계_사전.계 /= 사전개표율;
 
-      for (const key of Object.keys(총계_본)) {
+      for (const key of Object.keys(총계_본.items)) {
         총계_본.items[key] /= 본개표율;
       }
+      총계_본.계 /= 본개표율;
 
       let date = new Date();
       총계_사전.시간 = date.toLocaleTimeString("en-GB");
@@ -705,14 +718,28 @@ jQuery(function ($) {
       console.log(필터, 총계_사전, 총계_본);
 
       const groupKey = this.getGroupKey();
+      const groupDetailKey = this.getGroupDetailKey();
       const 지역목록 = JSON.parse(
         subsNull(localStorage.getItem(`개표단위_목록_${groupKey}`), "{}")
       );
+      지역목록[groupDetailKey] = Array.from(headerInfo.entries());
+
+      const 지역세부목록 = JSON.parse(
+        subsNull(
+          localStorage.getItem(`개표단위_세부목록_${groupDetailKey}`),
+          "{}"
+        )
+      );
       const storeKey = this.getStoreKey();
-      지역목록[storeKey] = [Array.from(headerInfo.entries()), date];
+      지역세부목록[storeKey] = date;
+
       localStorage.setItem(
         `개표단위_목록_${groupKey}`,
         JSON.stringify(지역목록)
+      );
+      localStorage.setItem(
+        `개표단위_세부목록_${groupDetailKey}`,
+        JSON.stringify(지역세부목록)
       );
 
       localStorage.setItem(
@@ -720,6 +747,8 @@ jQuery(function ($) {
         JSON.stringify(총계_사전)
       );
       localStorage.setItem(`개표단위_본_${storeKey}`, JSON.stringify(총계_본));
+      console.log("사전", 총계_사전);
+      console.log("본", 총계_본);
     }
 
     public display일반() {
@@ -795,24 +824,48 @@ jQuery(function ($) {
       const headerInfo = this.headerInfo;
       //const 지역목록 = JSON.parse(subsNull(localStorage.getItem('대통령지역_목록'), '{}'));
 
-      const 총계: t총계 = { items: {}, 계: 0 };
+      //총계는 대선에만?
+      //const 총계: t총계 = { items: {}, 계: 0 };
 
       this.$표.append("<tr><td></td></tr>");
       const groupKey = this.getGroupKey();
-      const storeKey = this.getStoreKey();
-      for (const 지역 of Object.keys(지역코드)) {
-        const 도시목록 = JSON.parse(
-          subsNull(localStorage.getItem(`개표단위_목록_${groupKey}`), "{}")
+      const 지역목록: Record<string, [number, string][]> = JSON.parse(
+        subsNull(localStorage.getItem(`개표단위_목록_${groupKey}`), "{}")
+      );
+      console.log("지역목록", 지역목록);
+      if (!지역목록) {
+        return;
+      }
+
+      for (const [groupDetailKey, rawHeader] of Object.entries(지역목록)) {
+        const 지역이름 = groupDetailKey.split("_");
+        지역이름.shift();
+
+        const headerInfo: RuleSet = new Map(rawHeader);
+        headerInfo.set(1, "시간");
+
+        const 지역세부목록 = JSON.parse(
+          subsNull(
+            localStorage.getItem(`개표단위_세부목록_${groupDetailKey}`),
+            "{}"
+          )
         );
-        if (!Object.keys(도시목록).length) {
+        if (!Object.keys(지역세부목록).length) {
           continue;
         }
-        console.log("개표단위", 지역);
+        console.log("개표단위", groupDetailKey);
 
         const 세부_사전_계: t총계 = { items: {}, 계: 0 };
         const 세부_본_계: t총계 = { items: {}, 계: 0 };
+        const 세부_전체_계: t총계 = { items: {}, 계: 0 };
 
-        for (const _r of Object.keys(도시목록)) {
+        const tHeader: Record<string, string> = {};
+        for (const name of headerInfo.values()) {
+          tHeader[name] = name.split("_").join("<br>\n");
+        }
+        this.$표.append(toTr(tHeader, headerInfo, 지역이름.join("\n")));
+
+        for (const storeKey of Object.keys(지역세부목록)) {
           const 세부_사전: t총계 = JSON.parse(
             localStorage.getItem(`개표단위_사전_${storeKey}`) ?? "{}"
           );
@@ -827,7 +880,15 @@ jQuery(function ($) {
           for (const [세부계, 세부] of target) {
             console.log(세부계, 세부);
 
+            if(세부계.시간 === undefined){
+              세부계.시간 = 세부.시간;
+            }
+            else if(세부.시간 !== undefined){
+              세부계.시간 = 세부.시간 < 세부계.시간 ? 세부.시간 : 세부계.시간;
+            }
+
             세부계.계 = 세부.계 + subsNull(세부계.계, 0);
+            세부_전체_계.계 = 세부.계 + subsNull(세부_전체_계.계, 0);
 
             for (const 후보 of Object.keys(세부.items)) {
               if (invalidThKey.has(후보)) {
@@ -835,26 +896,16 @@ jQuery(function ($) {
               }
               const value = 세부.items[후보];
               세부계.items[후보] = value + subsNull(세부계.items[후보], 0);
-              총계.items[후보] = value + subsNull(총계.items[후보], 0);
-              총계.계 = value + subsNull(총계.계, 0);
+              세부_전체_계.items[후보] =
+                value + subsNull(세부_전체_계.items[후보], 0);
             }
           }
         }
 
-        this.$표.append(
-          toTr(mergeObject(세부_사전_계), headerInfo, `${지역}(사전)`)
-        );
-        this.$표.append(
-          toTr(mergeObject(세부_본_계), headerInfo, `${지역}(본)`)
-        );
+        this.$표.append(toTr(mergeObject(세부_사전_계), headerInfo, `(사전)`));
+        this.$표.append(toTr(mergeObject(세부_본_계), headerInfo, `(본)`));
+        this.$표.append(toTr(mergeObject(세부_전체_계), headerInfo, `계`));
       }
-
-      const 비율: Record<string, string> = {};
-      for (const [코드, value] of Object.entries(총계.items)) {
-        비율[코드] = ((value / 총계.계) * 100).toFixed(2) + "%";
-      }
-      this.$표.append(toTr(mergeObject(총계), headerInfo, "계"));
-      this.$표.append(toTr(비율, headerInfo, ""));
     }
   }
 
@@ -881,7 +932,7 @@ jQuery(function ($) {
       }
       if (필터.타입 == "개표단위별개표결과") {
         const obj = new ElectionV(필터, ["선거명", "도시"]);
-        obj.display개표단위();
+        obj.parse개표단위();
       }
     } else {
       console.log("해당 없음");
