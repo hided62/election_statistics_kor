@@ -4,6 +4,12 @@ import { 기호제거 } from "./util/기호제거";
 
 declare const jQuery: JQueryStatic;
 
+type t총계 = {
+  items: Record<string, number>;
+  계: number;
+  시간?: string;
+};
+
 type t필터 = {
   타입: string;
   선거명: string;
@@ -12,43 +18,65 @@ type t필터 = {
   선거구: string;
 };
 
-type t총계 = {
-  items: Record<string, number>;
-  계: number;
-  시간?: string;
-};
-
-type t구시군장투표구 = {
-  선거구명: string;
-  구시군명: string;
+interface t개별투표 {
   개표율: number;
   계: number;
 }
 
-type t광역의회의원비례대표선거 = {
-  구시군명: string;
-  개표율: number;
-  계: number;
-}
-
-type t의회의원선거 = {
-  구시군명: string;
-  선거구명: string;
-  개표율: number;
-  계: number;
-}
-
-type t세부투표구 = {
+type t개표단위 = {
   시도명: string;
   구시군명: string;
+  선거구명: string;
+  읍면동명: string;
   개표율: number;
   계: number;
+  [key: string]: number | string;
 };
 
 type t투표구 = {
   읍면동명: string;
   투표구명: string;
   계: number;
+  [key: string]: number | string;
+};
+
+const 정당코드: Record<
+  string,
+  {
+    정당: string;
+    색상: string;
+  }
+> = {
+  더불어민주당: { 정당: "더불어민주당", 색상: "#196CD1" },
+  국민의힘: { 정당: "국민의힘", 색상: "#E61E2B" },
+  정의당: { 정당: "정의당", 색상: "#FFCC00" },
+  기본소득당: { 정당: "기본소득당", 색상: "#777777" },
+  녹색당: { 정당: "녹색당", 색상: "#777777" },
+  독도당: { 정당: "독도당", 색상: "#777777" },
+  진보당: { 정당: "진보당", 색상: "#777777" },
+  통일한국당: { 정당: "통일한국당", 색상: "#777777" },
+  한류연합당: { 정당: "한류연합당", 색상: "#777777" },
+  무소속: { 정당: "무소속", 색상: "#777777" },
+};
+
+const 지역코드 = {
+  서울특별시: 1,
+  부산광역시: 2,
+  대구광역시: 3,
+  인천광역시: 4,
+  광주광역시: 5,
+  대전광역시: 6,
+  울산광역시: 7,
+  세종특별자치시: 8,
+  경기도: 9,
+  강원도: 10,
+  충청북도: 11,
+  충청남도: 12,
+  전라북도: 13,
+  전라남도: 14,
+  경상북도: 15,
+  경상남도: 16,
+  제주특별자치도: 17,
 };
 
 type RuleSet = Map<number, string>;
@@ -347,79 +375,18 @@ const 총투표수: Record<string, Record<string, [number, number]>> = {
 };
 
 jQuery(function ($) {
-  const 정당코드: Record<
-    string,
-    {
-      정당: string;
-      색상: string;
+  function mergeObject(계: t총계): Record<string, string | number> {
+    let result: Record<string, string | number> = {};
+    for (const [key, value] of Object.entries(계.items)) {
+      result[key] = value;
     }
-  > = {
-    더불어민주당: { 정당: "더불어민주당", 색상: "#196CD1" },
-    국민의힘: { 정당: "국민의힘", 색상: "#E61E2B" },
-    정의당: { 정당: "정의당", 색상: "#FFCC00" },
-    기본소득당: { 정당: "기본소득당", 색상: "#777777" },
-    녹색당: { 정당: "녹색당", 색상: "#777777" },
-    독도당: { 정당: "독도당", 색상: "#777777" },
-    진보당: { 정당: "진보당", 색상: "#777777" },
-    통일한국당: { 정당: "통일한국당", 색상: "#777777" },
-    한류연합당: { 정당: "한류연합당", 색상: "#777777" },
-    무소속: { 정당: "무소속", 색상: "#777777" },
-  };
 
-  const 지역코드 = {
-    서울특별시: 1,
-    부산광역시: 2,
-    대구광역시: 3,
-    인천광역시: 4,
-    광주광역시: 5,
-    대전광역시: 6,
-    울산광역시: 7,
-    세종특별자치시: 8,
-    경기도: 9,
-    강원도: 10,
-    충청북도: 11,
-    충청남도: 12,
-    전라북도: 13,
-    전라남도: 14,
-    경상북도: 15,
-    경상남도: 16,
-    제주특별자치도: 17,
-  };
+    return result;
+  }
 
-  const 필터: t필터 = {
-    타입: 기호제거($(".r_title h4").text()),
-    선거명: 기호제거($("#electionName").text()),
-    도시: 기호제거($("#cityName").text()),
-    구시군: 기호제거($("#townName").text()),
-    선거구: 기호제거($("#sggCityName").text()),
-  };
-  console.log("필터", 필터);
-
-  $(function () {
-    //다른 모드는 다른 코드 참고
-    if (필터.선거명 == "시도지사선거") {
-      if (필터.타입 == "개표진행상황") {
-        parse세부();
-        if (필터.도시 == "") {
-          display일반_지역();
-
-          display개표단위();
-        }
-      }
-      if (필터.타입 == "개표단위별개표결과") {
-        parse개표단위('구시군');
-      }
-    } else if(필터.선거명 == '구시군의장선거'){
-
-    }else {
-      console.log("해당 없음");
-      return; //안한다
-    }
-  });
-
-  const trToObj = function(
+  const trToObj = function (
     $tr: JQuery<HTMLElement>,
-    ruleset: RuleSet,
+    ruleset: RuleSet
   ): Record<string, string | number> {
     const result: Record<string, string | number> = {};
     $($tr)
@@ -437,11 +404,10 @@ jQuery(function ($) {
           text = floatNum;
         }
 
-        if (!ruleset.has(idx)) {
+        const key = ruleset.get(idx);
+        if (key === undefined) {
           return;
         }
-
-        const key = ruleset.get(idx);
 
         result[key] = text;
       });
@@ -449,51 +415,422 @@ jQuery(function ($) {
     return result;
   };
 
+  class ElectionV<T extends t개별투표> {
+    protected $표: JQuery<HTMLElement>;
+    protected headerInfo: RuleSet;
+    protected partyInfo: Record<string, string>;
+
+    protected thQuery1: string;
+    protected thQuery2: string;
+    protected thOffset: number;
+
+    constructor(
+      public readonly 필터: t필터,
+      public readonly 구별키: (keyof t필터)[],
+      public readonly is개표단위: boolean
+    ) {
+      this.$표 = $("#table01");
+      [this.headerInfo, this.partyInfo] = this.parseHeader();
+
+      if (!is개표단위) {
+        this.thQuery1 = "thead tr:eq(0) th";
+        this.thQuery2 = "tbody tr:eq(0) td";
+        this.thOffset = 0;
+      } else {
+        this.thQuery1 = "thead tr:eq(0) th";
+        this.thQuery2 = "thead tr:eq(1) th";
+        this.thOffset = 4;
+      }
+    }
+
+    protected getStoreKey(): string {
+      return JSON.stringify(this.필터);
+    }
+
+    protected getGroupKey(): string {
+      const storeKey: string[] = [];
+      for (const key of this.구별키) {
+        storeKey.push(this.필터[key]);
+      }
+      return storeKey.join("_");
+    }
+
+    protected extendRuleset(
+      $tds: JQuery<HTMLElement>,
+      ruleBase: RuleSet,
+      partyInfo: Record<string, string>,
+      offset: number
+    ) {
+      const ruleset = new Map(ruleBase);
+
+      let xpos = offset;
+      $tds.each(function (idx) {
+        const text = 기호제거(this.innerText);
+        console.log(text);
+        if (offset == 0 && idx < 2) {
+          xpos += 1;
+          return;
+        }
+
+        if (text !== "") {
+          const arr = text.split("\n");
+          if (arr.length == 1) {
+            ruleset.set(xpos, text);
+          } else {
+            if (arr[0] === "") {
+              xpos += 1;
+              return;
+            }
+            if (arr[0] == "무소속") {
+              arr[0] += arr[1];
+            }
+            partyInfo[arr[0]] = arr[1];
+            ruleset.set(xpos, text);
+          }
+        }
+
+        xpos += 1;
+      });
+      return ruleset;
+    }
+
+    protected parseHeader(): [RuleSet, Record<string, string>] {
+      const ruleset = new Map<number, string>();
+      const partyInfo: Record<string, string> = {};
+      let xpos = 0;
+      this.$표.find(this.thQuery1).each(function () {
+        let $th = $(this);
+        let text = 기호제거($th.text()).trim();
+        console.log(text);
+        const colspan = parseInt(subsNull($th.attr("colspan"), "1"));
+
+        if (text !== "") {
+          ruleset.set(xpos, text);
+        }
+
+        xpos += colspan;
+      });
+
+      const headerInfo = this.extendRuleset(
+        this.$표.find(this.thQuery2),
+        ruleset,
+        partyInfo,
+        this.thOffset
+      );
+
+      return [headerInfo, partyInfo];
+    }
+
+    public parse일반() {
+      const $표 = this.$표;
+
+      const headerInfo = this.headerInfo;
+      //console.log('header', headerInfo, partyInfo);
+
+      const 총계: t총계 = { items: {}, 계: 0 };
+
+      for (const 소속 of Object.keys(정당코드)) {
+        총계.items[소속] = 0;
+      }
+
+      $표.find("tbody tr:gt(0)").each(function () {
+        const $this = $(this);
+        const 투표구 = trToObj($this, headerInfo) as t개표단위;
+
+        if (투표구.시도명 == "합계" || 투표구.구시군명 == "합계") {
+          return;
+        }
+
+        if (투표구.구시군명 == "" || 투표구.시도명 == "") {
+          return;
+        }
+
+        //console.log('투표구', 투표구);
+
+        if (!("개표율" in 투표구)) {
+          투표구.개표율 = 100.0;
+        }
+
+        if (투표구.개표율 === 0) {
+          return;
+        }
+
+        const invMult = 100.0 / 투표구.개표율;
+
+        총계.계 += 투표구.계 * invMult;
+
+        for (const 소속 of Object.keys(정당코드)) {
+          총계.items[소속] += Number(투표구[소속]) * invMult;
+        }
+      });
+
+      let date = new Date();
+      총계.시간 = date.toLocaleTimeString("en-GB");
+
+      //console.log(총계);
+
+      localStorage.setItem(
+        "대통령지역_" + subsNull(필터.도시, "전체"),
+        JSON.stringify(총계)
+      );
+      if (필터.도시 !== "") {
+        const 지역목록 = JSON.parse(
+          subsNull(localStorage.getItem("대통령지역_목록"), "{}")
+        );
+        지역목록[필터.도시] = date;
+        localStorage.setItem("대통령지역_목록", JSON.stringify(지역목록));
+      }
+
+      const groupKey = this.getGroupKey();
+      const 지역목록 = JSON.parse(
+        subsNull(localStorage.getItem(`일반_목록_${groupKey}`), "{}")
+      );
+      const storeKey = this.getStoreKey();
+      지역목록[storeKey] = date;
+      localStorage.setItem(`일반_목록_${groupKey}`, JSON.stringify(지역목록));
+
+      localStorage.setItem(`일반_${storeKey}`, JSON.stringify(총계));
+    }
+
+    protected parse개표단위() {
+      console.log(필터.타입);
+
+      const $표 = $("#table01");
+
+      if (필터.구시군 === "") {
+        필터.구시군 = 필터.도시;
+      }
+
+      const headerInfo = this.headerInfo;
+      console.log("header", headerInfo);
+
+      const 총계_사전: t총계 = { items: {}, 계: 0 };
+      const 총계_본: t총계 = { items: {}, 계: 0 };
+
+      for (const 소속 of Object.keys(정당코드)) {
+        총계_사전.items[소속] = 0;
+        총계_본.items[소속] = 0;
+      }
+
+      const 구분1: Record<string, boolean> = {
+        거소선상투표: true,
+        재외투표: true,
+        재외투표공관: true,
+        관외사전투표: true,
+      };
+
+      const 구분2: Record<string, boolean> = {
+        관내사전투표: true,
+      };
+
+      //let 읍면동 = '';
+      $표.find("tbody tr:gt(0)").each(function () {
+        const $this = $(this);
+        const 투표구 = trToObj($this, headerInfo) as t투표구;
+
+        if (투표구.읍면동명 == "합계") {
+          return;
+        }
+
+        if (투표구.투표구명 == "소계") {
+          return;
+        }
+
+        const is사전투표 = subsNull<boolean>(
+          구분1[투표구.읍면동명],
+          subsNull(구분2[투표구.투표구명], false)
+        );
+
+        //console.log('투표구', 투표구);
+
+        const 총계_대상 = is사전투표 ? 총계_사전 : 총계_본;
+
+        총계_대상.계 = 투표구.계 + subsNull(총계_대상.계, 0);
+        for (const 소속 of Object.keys(정당코드)) {
+          총계_대상.items[소속] =
+            Number(투표구[소속]) + subsNull(총계_대상.items[소속], 0);
+        }
+      });
+
+      const [본투표수, 사전투표수] = 총투표수[필터.도시][필터.구시군];
+      console.log(본투표수, 사전투표수);
+      const 본개표율 = 총계_본.계 / 본투표수;
+      const 사전개표율 = 총계_사전.계 / 사전투표수;
+
+      for (const key of Object.keys(총계_사전)) {
+        총계_사전.items[key] /= 사전개표율;
+      }
+
+      for (const key of Object.keys(총계_본)) {
+        총계_본.items[key] /= 본개표율;
+      }
+
+      let date = new Date();
+      총계_사전.시간 = date.toLocaleTimeString("en-GB");
+      총계_본.시간 = date.toLocaleTimeString("en-GB");
+
+      console.log(필터, 총계_사전, 총계_본);
+
+      const groupKey = this.getGroupKey();
+      const 지역목록 = JSON.parse(
+        subsNull(localStorage.getItem(`개표단위_목록_${groupKey}`), "{}")
+      );
+      const storeKey = this.getStoreKey();
+      지역목록[storeKey] = date;
+      localStorage.setItem(
+        `개표단위_목록_${groupKey}`,
+        JSON.stringify(지역목록)
+      );
+
+      localStorage.setItem(
+        `개표단위_사전_${storeKey}`,
+        JSON.stringify(총계_사전)
+      );
+      localStorage.setItem(`개표단위_본_${storeKey}`, JSON.stringify(총계_본));
+    }
+
+    public display일반() {
+      const headerInfo = new Map(this.headerInfo);
+      headerInfo.set(1, "시간");
+
+      this.$표.append("<tr><td></td></tr>");
+
+      const groupKey = this.getGroupKey();
+      const 지역목록 = JSON.parse(
+        subsNull(localStorage.getItem(`일반_목록_${groupKey}`), "{}")
+      );
+      if (!지역목록) {
+        return;
+      }
+
+      const 총계: t총계 = { items: {}, 계: 0 };
+
+      for (const 지역키 of Object.keys(지역목록)) {
+        const 지역정보 = JSON.parse(
+          localStorage.getItem(`일반_${지역키}`) ?? "{}"
+        ) as t총계;
+        if(!지역정보){
+          continue;
+        }
+
+        this.$표.append(toTr(mergeObject(지역정보), headerInfo, 지역키));
+        for (const [정당, value] of Object.entries(지역정보.items)) {
+          if (!(정당 in 정당코드)) {
+            continue;
+          }
+
+          총계.items[정당] = value + subsNull(총계.items[정당], 0);
+          총계.계 = value + subsNull(총계.계, 0);
+        }
+      }
+
+      const 비율: Record<string, string> = {};
+      for (const [코드, value] of Object.entries(총계.items)) {
+        비율[코드] = ((value / 총계["계"]) * 100).toFixed(2) + "%";
+      }
+      this.$표.append(toTr(mergeObject(총계), headerInfo, "계"));
+      this.$표.append(toTr(비율, headerInfo, ""));
+    }
+
+    public display개표단위() {
+      const headerInfo = this.headerInfo;
+      //const 지역목록 = JSON.parse(subsNull(localStorage.getItem('대통령지역_목록'), '{}'));
+
+      const 총계: t총계 = { items: {}, 계: 0 };
+
+      this.$표.append("<tr><td></td></tr>");
+      const groupKey = this.getGroupKey();
+      const storeKey = this.getStoreKey();
+      for (const 지역 of Object.keys(지역코드)) {
+        const 도시목록 = JSON.parse(
+          subsNull(localStorage.getItem(`개표단위_목록_${groupKey}`), "{}")
+        );
+        if (!Object.keys(도시목록).length) {
+          continue;
+        }
+        console.log("개표단위", 지역);
+
+        const 세부_사전_계: t총계 = { items: {}, 계: 0 };
+        const 세부_본_계: t총계 = { items: {}, 계: 0 };
+
+        for (const _r of Object.keys(도시목록)) {
+          const 세부_사전: t총계 = JSON.parse(
+            localStorage.getItem(`개표단위_사전_${storeKey}`) ?? "{}"
+          );
+          const 세부_본: t총계 = JSON.parse(
+            localStorage.getItem(`개표단위_본_${storeKey}`) ?? "{}"
+          );
+
+          const target = [
+            [세부_사전_계, 세부_사전],
+            [세부_본_계, 세부_본],
+          ];
+          for (const [세부계, 세부] of target) {
+            console.log(세부계, 세부);
+
+            세부계.계 = 세부.계 + subsNull(세부계.계, 0);
+
+            for (const 정당 of Object.keys(정당코드)) {
+              const value = 세부.items[정당];
+              세부계.items[정당] = value + subsNull(세부계.items[정당], 0);
+              총계.items[정당] = value + subsNull(총계.items[정당], 0);
+              총계.계 = value + subsNull(총계.계, 0);
+            }
+          }
+        }
+
+        this.$표.append(
+          toTr(mergeObject(세부_사전_계), headerInfo, `${지역}(사전)`)
+        );
+        this.$표.append(
+          toTr(mergeObject(세부_본_계), headerInfo, `${지역}(본)`)
+        );
+      }
+
+      const 비율: Record<string, string> = {};
+      for (const [코드, value] of Object.entries(총계.items)) {
+        비율[코드] = ((value / 총계.계) * 100).toFixed(2) + "%";
+      }
+      this.$표.append(toTr(mergeObject(총계), headerInfo, "계"));
+      this.$표.append(toTr(비율, headerInfo, ""));
+    }
+  }
+
+  const 필터: t필터 = {
+    타입: 기호제거($(".r_title h4").text()),
+    선거명: 기호제거($("#electionName").text()),
+    도시: 기호제거($("#cityName").text()),
+    구시군: 기호제거($("#townName").text()),
+    선거구: 기호제거($("#sggCityName").text()),
+  };
+  console.log("필터", 필터);
+
+  $(function () {
+    //다른 모드는 다른 코드 참고
+    if (필터.선거명 == "시도지사선거") {
+      if (필터.타입 == "개표진행상황") {
+        const obj = new ElectionV(필터, ["타입", "선거명", "도시"], true);
+        obj.parse일반();
+        if (필터.도시 == "") {
+          obj.display개표단위();
+          obj.display일반();
+        }
+      }
+      if (필터.타입 == "개표단위별개표결과") {
+        const obj = new ElectionV(필터, ["타입", "선거명", "도시"], true);
+        obj.display개표단위();
+      }
+    } else {
+      console.log("해당 없음");
+      return; //안한다
+    }
+  });
+
   function numberWithCommas(x: number): string {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
 
-  const modifyRuleset = function (
-    $tds: JQuery<HTMLElement>,
-    ruleBase: RuleSet,
-    partyInfo: Record<string, string>,
-    offset = 0
-  ) {
-
-    const ruleset = new Map(ruleBase);
-
-    let xpos = offset;
-    $tds.each(function (idx) {
-      const text = 기호제거(this.innerText);
-      console.log(text);
-      if (offset == 0 && idx < 2) {
-        xpos += 1;
-        return;
-      }
-
-      if (text !== "") {
-        const arr = text.split("\n");
-        if (arr.length == 1) {
-          ruleset.set(xpos, text);
-        } else {
-          if (arr[0] === "") {
-            xpos += 1;
-            return;
-          }
-          if (arr[0] == "무소속") {
-            arr[0] += arr[1];
-          }
-          partyInfo[arr[0]] = arr[1];
-          ruleset.set(xpos, text);
-        }
-      }
-
-      xpos += 1;
-    });
-    return ruleset;
-  };
-
-  const toTr = function(
+  const toTr = function (
     arr: Record<string, string | number>,
     ruleset: RuleSet,
     name: string
@@ -504,10 +841,10 @@ jQuery(function ($) {
     const maxLen = Math.max(...ruleset.keys());
 
     for (let i = 0; i < maxLen; i++) {
-      if(!ruleset.has(i)){
+      const code = ruleset.get(i);
+      if (code === undefined) {
         continue;
       }
-      const code = ruleset.get(i);
       if (!(code in arr)) {
         html += '<td class="alignR"></td>\n';
       } else {
@@ -521,327 +858,5 @@ jQuery(function ($) {
 
     html += "</tr>";
     return $(html);
-  };
-
-  function mergeObject(계: t총계): Record<string, string | number> {
-    let result: Record<string, string | number> = {};
-    for (const [key, value] of Object.entries(계.items)) {
-      result[key] = value;
-    }
-
-    return result;
-  }
-
-  const parseHeader = function (
-    $표: JQuery<HTMLElement>
-  ): [RuleSet, Record<string, string>] {
-    const ruleset = new Map<number, string>();
-    const partyInfo: Record<string, string> = {};
-    let xpos = 0;
-    $표.find("thead tr:eq(0) th").each(function () {
-      let $th = $(this);
-      let text = 기호제거($th.text()).trim();
-      console.log(text);
-      const colspan = parseInt(subsNull($th.attr("colspan"), "1"));
-
-      if (text !== "") {
-        ruleset.set(xpos, text);
-      }
-
-      xpos += colspan;
-    });
-
-    const headerInfo = modifyRuleset(
-      $표.find("tbody tr:eq(0) td"),
-      ruleset,
-      partyInfo
-    );
-
-    return [headerInfo, partyInfo];
-  };
-
-  const parseHeader2 = function ($표: JQuery<HTMLElement>): [RuleSet, Record<string, string>] {
-    const ruleset = new Map<number, string>();
-    const partyInfo: Record<string, string> = {};
-    let xpos = 0;
-    $표.find("thead tr:eq(0) th").each(function () {
-      let $th = $(this);
-      let text = 기호제거($th.text()).trim();
-      console.log(text);
-      const colspan = parseInt(subsNull($th.attr("colspan"), "1"));
-
-      if (text !== "") {
-        ruleset.set(xpos, text);
-      }
-
-      xpos += colspan;
-    });
-
-    const headerInfo = modifyRuleset(
-      $표.find("thead tr:eq(1) th"),
-      ruleset,
-      partyInfo,
-      4
-    );
-
-    return [headerInfo, partyInfo];
-  };
-
-  const parse개표단위 = function (subKey: '구시군'|'선거구') {
-    console.log(필터.타입);
-
-    const $표 = $("#table01");
-
-    if (필터.구시군 === "") {
-      필터.구시군 = 필터.도시;
-    }
-
-    const [headerInfo] = parseHeader2($표);
-    console.log("header", headerInfo);
-
-    const 총계_사전: t총계 = { items: {}, 계: 0 };
-    const 총계_본: t총계 = { items: {}, 계: 0 };
-
-    for (const 소속 of Object.keys(정당코드)) {
-      총계_사전.items[소속] = 0;
-      총계_본.items[소속] = 0;
-    }
-
-    const 구분1 = {
-      거소선상투표: true,
-      재외투표: true,
-      재외투표공관: true,
-      관외사전투표: true,
-    };
-
-    const 구분2 = {
-      관내사전투표: true,
-    };
-
-    //let 읍면동 = '';
-    $표.find("tbody tr:gt(0)").each(function () {
-      const $this = $(this);
-      const 투표구 = trToObj($this, headerInfo) as t투표구;
-
-      if (투표구.읍면동명 == "합계") {
-        return;
-      }
-
-      /*
-            if (투표구.읍면동명 != '') {
-                읍면동 = 투표구.읍면동명;
-            }
-            */
-
-      if (투표구.투표구명 == "소계") {
-        return;
-      }
-
-      const is사전투표 = subsNull<boolean>(
-        구분1[투표구.읍면동명],
-        subsNull(구분2[투표구.투표구명], false)
-      );
-
-      //console.log('투표구', 투표구);
-
-      const 총계_대상 = is사전투표 ? 총계_사전 : 총계_본;
-
-      총계_대상.계 = 투표구.계 + subsNull(총계_대상.계, 0);
-      for (const 소속 of Object.keys(정당코드)) {
-        총계_대상.items[소속] =
-          투표구[소속] + subsNull(총계_대상.items[소속], 0);
-      }
-    });
-
-    const [본투표수, 사전투표수] = 총투표수[필터.도시][필터.구시군];
-    console.log(본투표수, 사전투표수);
-    const 본개표율 = 총계_본.계 / 본투표수;
-    const 사전개표율 = 총계_사전.계 / 사전투표수;
-
-    for (const key of Object.keys(총계_사전)) {
-      총계_사전[key] /= 사전개표율;
-    }
-
-    for (const key of Object.keys(총계_본)) {
-      총계_본[key] /= 본개표율;
-    }
-
-    let date = new Date();
-    총계_사전.시간 = date.toLocaleTimeString("en-GB");
-    총계_본.시간 = date.toLocaleTimeString("en-GB");
-
-    console.log(필터.구시군, 총계_사전, 총계_본);
-
-    localStorage.setItem(
-      `${필터.타입}_개표단위_사전_${필터.도시}_${필터.구시군}`,
-      JSON.stringify(총계_사전)
-    );
-    localStorage.setItem(
-      `${필터.타입}_개표단위_본_${필터.도시}_${필터.구시군}`,
-      JSON.stringify(총계_본)
-    );
-    const 지역목록 = JSON.parse(
-      subsNull(localStorage.getItem(`대통령세부_목록_${필터.도시}`), "{}")
-    );
-    지역목록[필터.구시군] = date;
-    localStorage.setItem(
-      `대통령세부_목록_${필터.도시}`,
-      JSON.stringify(지역목록)
-    );
-  };
-
-  const parse세부 = function () {
-    console.log(필터.타입);
-
-    const $표 = $("#table01");
-
-    const [headerInfo] = parseHeader($표);
-    //console.log('header', headerInfo, partyInfo);
-
-    const 총계: t총계 = { items: {}, 계: 0 };
-
-    for (const 소속 of Object.keys(정당코드)) {
-      총계.items[소속] = 0;
-    }
-
-    $표.find("tbody tr:gt(0)").each(function () {
-      const $this = $(this);
-      const 투표구 = trToObj($this, headerInfo) as t세부투표구;
-
-      if (투표구.시도명 == "합계" || 투표구.구시군명 == "합계") {
-        return;
-      }
-
-      if (투표구.구시군명 == "" || 투표구.시도명 == "") {
-        return;
-      }
-
-      //console.log('투표구', 투표구);
-
-      if (!("개표율" in 투표구)) {
-        투표구.개표율 = 100.0;
-      }
-
-      if (투표구.개표율 === 0) {
-        return;
-      }
-
-      const invMult = 100.0 / 투표구.개표율;
-
-      총계.계 += 투표구.계 * invMult;
-
-      for (const 소속 of Object.keys(정당코드)) {
-        총계[소속] += 투표구[소속] * invMult;
-      }
-    });
-
-    let date = new Date();
-    총계.시간 = date.toLocaleTimeString("en-GB");
-
-    //console.log(총계);
-
-    localStorage.setItem(
-      "대통령지역_" + subsNull(필터.도시, "전체"),
-      JSON.stringify(총계)
-    );
-    if (필터.도시 !== "") {
-      const 지역목록 = JSON.parse(
-        subsNull(localStorage.getItem("대통령지역_목록"), "{}")
-      );
-      지역목록[필터.도시] = date;
-      localStorage.setItem("대통령지역_목록", JSON.stringify(지역목록));
-    }
-  };
-
-  const display개표단위 = function () {
-    const $표 = $("#table01");
-    const [headerInfo] = parseHeader($표);
-    //const 지역목록 = JSON.parse(subsNull(localStorage.getItem('대통령지역_목록'), '{}'));
-
-    const 총계: t총계 = { items: {}, 계: 0 };
-
-    $표.append("<tr><td></td></tr>");
-    for (const 지역 of Object.keys(지역코드)) {
-      const 도시목록 = JSON.parse(
-        subsNull(localStorage.getItem(`대통령세부_목록_${지역}`), "{}")
-      );
-      if (!Object.keys(도시목록).length) {
-        continue;
-      }
-      console.log("개표단위", 지역);
-
-      const 세부_사전_계: t총계 = { items: {}, 계: 0 };
-      const 세부_본_계: t총계 = { items: {}, 계: 0 };
-
-      for (const 구시군 of Object.keys(도시목록)) {
-        const 세부_사전: t총계 = JSON.parse(
-          localStorage.getItem(`대통령세부_사전_${지역}_${구시군}`)
-        );
-        const 세부_본: t총계 = JSON.parse(
-          localStorage.getItem(`대통령세부_본_${지역}_${구시군}`)
-        );
-
-        const target = [
-          [세부_사전_계, 세부_사전],
-          [세부_본_계, 세부_본],
-        ];
-        for (const [세부계, 세부] of target) {
-          console.log(세부계, 세부);
-
-          세부계.계 = 세부.계 + subsNull(세부계.계, 0);
-
-          for (const 정당 of Object.keys(정당코드)) {
-            const value = 세부[정당];
-            세부계.items[정당] = value + subsNull(세부계.items[정당], 0);
-            총계.items[정당] = value + subsNull(총계.items[정당], 0);
-            총계.계 = value + subsNull(총계.계, 0);
-          }
-        }
-      }
-
-      $표.append(toTr(mergeObject(세부_사전_계), headerInfo, `${지역}(사전)`));
-      $표.append(toTr(mergeObject(세부_본_계), headerInfo, `${지역}(본)`));
-    }
-
-    const 비율 = {};
-    for (const [코드, value] of Object.entries(총계.items)) {
-      비율[코드] = ((value / 총계.계) * 100).toFixed(2) + "%";
-    }
-    $표.append(toTr(mergeObject(총계), headerInfo, "계"));
-    $표.append(toTr(비율, headerInfo, ""));
-  };
-
-  const display일반_지역 = function () {
-    const $표 = $("#table01");
-    const [headerInfo] = parseHeader($표);
-    headerInfo.set(1, '시간');
-
-    const 총계: t총계 = { 계: 0, items: {} };
-
-    $표.append("<tr><td></td></tr>");
-    for (const 지역 of Object.keys(지역코드)) {
-      const 도시정보: t총계 = JSON.parse(
-        subsNull(localStorage.getItem(`대통령지역_${지역}`), "{}")
-      );
-      if (!도시정보) {
-        continue;
-      }
-      $표.append(toTr(mergeObject(도시정보), headerInfo, 지역));
-      for (const [정당, value] of Object.entries(도시정보.items)) {
-        if (!(정당 in 정당코드)) {
-          continue;
-        }
-
-        총계[정당] = value + subsNull(총계[정당], 0);
-        총계.계 = value + subsNull(총계.계, 0);
-      }
-    }
-
-    const 비율: Record<string, string> = {};
-    for (const [코드, value] of Object.entries(총계.items)) {
-      비율[코드] = ((value / 총계["계"]) * 100).toFixed(2) + "%";
-    }
-    $표.append(toTr(mergeObject(총계), headerInfo, "계"));
-    $표.append(toTr(비율, headerInfo, ""));
   };
 });
