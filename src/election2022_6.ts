@@ -1,5 +1,6 @@
 import { toNumber } from "./util/toNumber";
 import { subsNull } from "./util/subsNull";
+import { 기호제거 } from "./util/기호제거";
 
 declare const jQuery: JQueryStatic;
 
@@ -8,6 +9,7 @@ type t필터 = {
   선거명: string;
   도시: string;
   구시군: string;
+  선거구: string;
 };
 
 type t총계 = {
@@ -50,14 +52,6 @@ type t투표구 = {
 };
 
 type RuleSet = Map<number, string>;
-
-declare global {
-  interface Window {
-    $: JQueryStatic;
-    jQuery: JQueryStatic;
-    필터: t필터;
-  }
-}
 
 const $ = jQuery.noConflict(true);
 
@@ -392,36 +386,32 @@ jQuery(function ($) {
     제주특별자치도: 17,
   };
 
-  let 기호제거 = function (text: string): string {
-    // | { } _ - [ ] ( ) · ! ? , (공백)
-    return text.replace(/\||{|}|_|-|\[|\]|\(|\)|·|!|\?|,| |/gi, "");
-  };
-
   const 필터: t필터 = {
     타입: 기호제거($(".r_title h4").text()),
     선거명: 기호제거($("#electionName").text()),
     도시: 기호제거($("#cityName").text()),
     구시군: 기호제거($("#townName").text()),
+    선거구: 기호제거($("#sggCityName").text()),
   };
   console.log("필터", 필터);
-  window.필터 = 필터;
 
   $(function () {
     //다른 모드는 다른 코드 참고
-    if (필터.선거명 == "대통령선거") {
+    if (필터.선거명 == "시도지사선거") {
       if (필터.타입 == "개표진행상황") {
-        parse대통령세부();
+        parse세부();
         if (필터.도시 == "") {
-          display대통령();
+          display일반_지역();
 
-          display대통령개표단위();
+          display개표단위();
         }
       }
       if (필터.타입 == "개표단위별개표결과") {
-        parse대통령개표단위();
+        parse개표단위('구시군');
       }
-      //parse대통령();
-    } else {
+    } else if(필터.선거명 == '구시군의장선거'){
+
+    }else {
       console.log("해당 없음");
       return; //안한다
     }
@@ -597,8 +587,8 @@ jQuery(function ($) {
     return [headerInfo, partyInfo];
   };
 
-  const parse대통령개표단위 = function () {
-    console.log("대통령개표단위");
+  const parse개표단위 = function (subKey: '구시군'|'선거구') {
+    console.log(필터.타입);
 
     const $표 = $("#table01");
 
@@ -683,11 +673,11 @@ jQuery(function ($) {
     console.log(필터.구시군, 총계_사전, 총계_본);
 
     localStorage.setItem(
-      `대통령세부_사전_${필터.도시}_${필터.구시군}`,
+      `${필터.타입}_개표단위_사전_${필터.도시}_${필터.구시군}`,
       JSON.stringify(총계_사전)
     );
     localStorage.setItem(
-      `대통령세부_본_${필터.도시}_${필터.구시군}`,
+      `${필터.타입}_개표단위_본_${필터.도시}_${필터.구시군}`,
       JSON.stringify(총계_본)
     );
     const 지역목록 = JSON.parse(
@@ -700,8 +690,8 @@ jQuery(function ($) {
     );
   };
 
-  const parse대통령세부 = function () {
-    console.log("대통령세부");
+  const parse세부 = function () {
+    console.log(필터.타입);
 
     const $표 = $("#table01");
 
@@ -763,7 +753,7 @@ jQuery(function ($) {
     }
   };
 
-  const display대통령개표단위 = function () {
+  const display개표단위 = function () {
     const $표 = $("#table01");
     const [headerInfo] = parseHeader($표);
     //const 지역목록 = JSON.parse(subsNull(localStorage.getItem('대통령지역_목록'), '{}'));
@@ -821,11 +811,10 @@ jQuery(function ($) {
     $표.append(toTr(비율, headerInfo, ""));
   };
 
-  const display대통령 = function () {
+  const display일반_지역 = function () {
     const $표 = $("#table01");
     const [headerInfo] = parseHeader($표);
     headerInfo.set(1, '시간');
-    //const 지역목록 = JSON.parse(subsNull(localStorage.getItem('대통령지역_목록'), '{}'));
 
     const 총계: t총계 = { 계: 0, items: {} };
 

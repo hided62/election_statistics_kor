@@ -51,6 +51,21 @@ function toNumber(value) {
 }
 
 
+/***/ }),
+
+/***/ 168:
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({
+    value: true
+}));
+exports["기호제거"] = 기호제거;
+function 기호제거(text) {
+    return text.replace(/\||{|}|_|-|\[|\]|\(|\)|·|!|\?|,| |/gi, "");
+}
+
+
 /***/ })
 
 /******/ 	});
@@ -86,6 +101,7 @@ var __webpack_exports__ = {};
 
 var _toNumber = __webpack_require__(440);
 var _subsNull = __webpack_require__(194);
+var _기호제거 = __webpack_require__(168);
 const $ = jQuery.noConflict(true);
 //KST 2022-06-01 15:50
 //Replace ',' => ''
@@ -1189,33 +1205,28 @@ jQuery(function($1) {
         경상남도: 16,
         제주특별자치도: 17
     };
-    let 기호제거 = function(text) {
-        // | { } _ - [ ] ( ) · ! ? , (공백)
-        return text.replace(/\||{|}|_|-|\[|\]|\(|\)|·|!|\?|,| |/gi, "");
-    };
     const 필터 = {
-        타입: 기호제거($1(".r_title h4").text()),
-        선거명: 기호제거($1("#electionName").text()),
-        도시: 기호제거($1("#cityName").text()),
-        구시군: 기호제거($1("#townName").text())
+        타입: (0, _기호제거).기호제거($1(".r_title h4").text()),
+        선거명: (0, _기호제거).기호제거($1("#electionName").text()),
+        도시: (0, _기호제거).기호제거($1("#cityName").text()),
+        구시군: (0, _기호제거).기호제거($1("#townName").text()),
+        선거구: (0, _기호제거).기호제거($1("#sggCityName").text())
     };
     console.log("\uD544\uD130", 필터);
-    window.필터 = 필터;
     $1(function() {
         //다른 모드는 다른 코드 참고
-        if (필터.선거명 == "\uB300\uD1B5\uB839\uC120\uAC70") {
+        if (필터.선거명 == "\uC2DC\uB3C4\uC9C0\uC0AC\uC120\uAC70") {
             if (필터.타입 == "\uAC1C\uD45C\uC9C4\uD589\uC0C1\uD669") {
-                parse대통령세부();
+                parse세부();
                 if (필터.도시 == "") {
-                    display대통령();
-                    display대통령개표단위();
+                    display일반_지역();
+                    display개표단위();
                 }
             }
             if (필터.타입 == "\uAC1C\uD45C\uB2E8\uC704\uBCC4\uAC1C\uD45C\uACB0\uACFC") {
-                parse대통령개표단위();
+                parse개표단위("\uAD6C\uC2DC\uAD70");
             }
-        } else //parse대통령();
-        {
+        } else if (필터.선거명 == "\uAD6C\uC2DC\uAD70\uC758\uC7A5\uC120\uAC70") {} else {
             console.log("\uD574\uB2F9 \uC5C6\uC74C");
             return;
         }
@@ -1225,7 +1236,7 @@ jQuery(function($1) {
         const result = {};
         $1($tr).find("td").each(function(idx) {
             let arr = $1(this).text().split("(");
-            let text = 기호제거(arr[0]).trim();
+            let text = (0, _기호제거).기호제거(arr[0]).trim();
             let floatNum = parseFloat(text);
             let num = parseInt(text);
             if (text.toString() == `${num}`) {
@@ -1248,7 +1259,7 @@ jQuery(function($1) {
         const ruleset = new Map(ruleBase);
         let xpos = offset;
         $tds.each(function(idx) {
-            const text = 기호제거(this.innerText);
+            const text = (0, _기호제거).기호제거(this.innerText);
             console.log(text);
             if (offset == 0 && idx < 2) {
                 xpos += 1;
@@ -1308,7 +1319,7 @@ jQuery(function($1) {
         let xpos = 0;
         $표.find("thead tr:eq(0) th").each(function() {
             let $th = $1(this);
-            let text = 기호제거($th.text()).trim();
+            let text = (0, _기호제거).기호제거($th.text()).trim();
             console.log(text);
             const colspan = parseInt((0, _subsNull).subsNull($th.attr("colspan"), "1"));
             if (text !== "") {
@@ -1328,7 +1339,7 @@ jQuery(function($1) {
         let xpos = 0;
         $표.find("thead tr:eq(0) th").each(function() {
             let $th = $1(this);
-            let text = 기호제거($th.text()).trim();
+            let text = (0, _기호제거).기호제거($th.text()).trim();
             console.log(text);
             const colspan = parseInt((0, _subsNull).subsNull($th.attr("colspan"), "1"));
             if (text !== "") {
@@ -1342,8 +1353,8 @@ jQuery(function($1) {
             partyInfo
         ];
     };
-    const parse대통령개표단위 = function() {
-        console.log("\uB300\uD1B5\uB839\uAC1C\uD45C\uB2E8\uC704");
+    const parse개표단위 = function(subKey) {
+        console.log(필터.타입);
         const $표 = $1("#table01");
         if (필터.구시군 === "") {
             필터.구시군 = 필터.도시;
@@ -1407,14 +1418,14 @@ jQuery(function($1) {
         총계_사전.시간 = date.toLocaleTimeString("en-GB");
         총계_본.시간 = date.toLocaleTimeString("en-GB");
         console.log(필터.구시군, 총계_사전, 총계_본);
-        localStorage.setItem(`대통령세부_사전_${필터.도시}_${필터.구시군}`, JSON.stringify(총계_사전));
-        localStorage.setItem(`대통령세부_본_${필터.도시}_${필터.구시군}`, JSON.stringify(총계_본));
+        localStorage.setItem(`${필터.타입}_개표단위_사전_${필터.도시}_${필터.구시군}`, JSON.stringify(총계_사전));
+        localStorage.setItem(`${필터.타입}_개표단위_본_${필터.도시}_${필터.구시군}`, JSON.stringify(총계_본));
         const 지역목록 = JSON.parse((0, _subsNull).subsNull(localStorage.getItem(`대통령세부_목록_${필터.도시}`), "{}"));
         지역목록[필터.구시군] = date;
         localStorage.setItem(`대통령세부_목록_${필터.도시}`, JSON.stringify(지역목록));
     };
-    const parse대통령세부 = function() {
-        console.log("\uB300\uD1B5\uB839\uC138\uBD80");
+    const parse세부 = function() {
+        console.log(필터.타입);
         const $표 = $1("#table01");
         const [headerInfo] = parseHeader($표);
         //console.log('header', headerInfo, partyInfo);
@@ -1457,7 +1468,7 @@ jQuery(function($1) {
             localStorage.setItem("\uB300\uD1B5\uB839\uC9C0\uC5ED_\uBAA9\uB85D", JSON.stringify(지역목록));
         }
     };
-    const display대통령개표단위 = function() {
+    const display개표단위 = function() {
         const $표 = $1("#table01");
         const [headerInfo] = parseHeader($표);
         //const 지역목록 = JSON.parse(subsNull(localStorage.getItem('대통령지역_목록'), '{}'));
@@ -1514,11 +1525,10 @@ jQuery(function($1) {
         $표.append(toTr(mergeObject(총계), headerInfo, "\uACC4"));
         $표.append(toTr(비율, headerInfo, ""));
     };
-    const display대통령 = function() {
+    const display일반_지역 = function() {
         const $표 = $1("#table01");
         const [headerInfo] = parseHeader($표);
         headerInfo.set(1, "\uC2DC\uAC04");
-        //const 지역목록 = JSON.parse(subsNull(localStorage.getItem('대통령지역_목록'), '{}'));
         const 총계 = {
             계: 0,
             items: {}

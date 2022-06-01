@@ -35,7 +35,6 @@ declare global {
   interface Window {
     $: JQueryStatic;
     jQuery: JQueryStatic;
-    필터: t필터;
   }
 }
 
@@ -400,7 +399,6 @@ jQuery(function ($) {
     구시군: 기호제거($("#townName").text()),
   };
   console.log("필터", 필터);
-  window.필터 = 필터;
 
   $(function () {
     //다른 모드는 다른 코드 참고

@@ -1249,7 +1249,6 @@ jQuery(function($1) {
         구시군: 기호제거($1("#townName").text())
     };
     console.log("\uD544\uD130", 필터);
-    window.필터 = 필터;
     $1(function() {
         //다른 모드는 다른 코드 참고
         if (필터.선거명 == "\uB300\uD1B5\uB839\uC120\uAC70") {
