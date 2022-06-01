@@ -7,14 +7,13 @@ const moduleInfos = {
   election2022_president: {
     name: "개표진행 대선 2022",
     namespace: "https://hided.net/",
-    version: "0.996",
+    version: "0.997",
     description:
       "개표 진행 상황을 보여줍니다. 각 시군구별 개별 개표율을 합산한 득표율을 보여줍니다.",
     author: "Hide_D",
     requires: ["jquery"],
     match: ["http://info.nec.go.kr/electioninfo/electionInfo_report.xhtml"],
-    updateURL: "https://github.com/hided62/election_statistics_kor/raw/main/dist/election2022_president.user.js",
-    downloadURL: "https://github.com/hided62/election_statistics_kor/raw/main/dist/election2022_president.user.js",
+    srcPrefix: 'https://raw.githubusercontent.com/hided62/election_statistics_kor/main/dist/',
     grant: ["none"],
   },
 };
@@ -33,6 +32,7 @@ function generateBanner(args) {
     "requires",
     "match",
     "supportURL",
+    "srcPrefix",
     "downloadURL",
     "updateURL",
     "grant",
@@ -59,6 +59,12 @@ function generateBanner(args) {
         (require) => `// @${"require".padEnd(padlen)} ${requirePath[require]}`
       );
       banner.push(...requiresBanner);
+      continue;
+    }
+    if (key === "srcPrefix"){
+      const path = `${moduleInfo[key]}${filename}`;
+      banner.push(`// @${"downloadURL".padEnd(padlen)} ${path}`);
+      banner.push(`// @${"updateURL".padEnd(padlen)} ${path}`);
       continue;
     }
     const value = moduleInfo[key];

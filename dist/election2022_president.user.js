@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         개표진행 대선 2022
 // @namespace    https://hided.net/
-// @version      0.996
+// @version      0.997
 // @description  개표 진행 상황을 보여줍니다. 각 시군구별 개별 개표율을 합산한 득표율을 보여줍니다.
 // @author       Hide_D
 // @require      https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js
 // @match        http://info.nec.go.kr/electioninfo/electionInfo_report.xhtml
-// @downloadURL  https://github.com/hided62/election_statistics_kor/raw/main/dist/election2022_president.user.js
-// @updateURL    https://github.com/hided62/election_statistics_kor/raw/main/dist/election2022_president.user.js
+// @downloadURL  https://raw.githubusercontent.com/hided62/election_statistics_kor/main/dist/election2022_president.user.js
+// @updateURL    https://raw.githubusercontent.com/hided62/election_statistics_kor/main/dist/election2022_president.user.js
 // @grant        none
 // ==/UserScript==
 /******/ (() => { // webpackBootstrap
