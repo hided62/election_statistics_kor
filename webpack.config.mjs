@@ -7,14 +7,15 @@ const moduleInfos = {
   election2022_president: {
     name: "개표진행 대선 2022",
     namespace: "https://hided.net/",
-    version: "0.995",
+    version: "0.996",
     description:
       "개표 진행 상황을 보여줍니다. 각 시군구별 개별 개표율을 합산한 득표율을 보여줍니다.",
     author: "Hide_D",
     requires: ["jquery"],
     match: ["http://info.nec.go.kr/electioninfo/electionInfo_report.xhtml"],
-    updateURL: "https://hided.net/gs_script/election2022.user.js",
-    grant: "none",
+    updateURL: "https://github.com/hided62/election_statistics_kor/raw/main/dist/election2022_president.user.js",
+    downloadURL: "https://github.com/hided62/election_statistics_kor/raw/main/dist/election2022_president.user.js",
+    grant: ["none"],
   },
 };
 
@@ -31,6 +32,8 @@ function generateBanner(args) {
     "author",
     "requires",
     "match",
+    "supportURL",
+    "downloadURL",
     "updateURL",
     "grant",
   ];
