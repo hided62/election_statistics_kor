@@ -79,6 +79,18 @@ const 지역코드 = {
   제주특별자치도: 17,
 };
 
+const invalidThKey = new Set([
+  "구시군명",
+  "선거구명",
+  "읍면동명",
+  "선거인수",
+  "투표수",
+  "기권수",
+  "무효투표수",
+  "개표율",
+  "계",
+]);
+
 type RuleSet = Map<number, string>;
 
 const $ = jQuery.noConflict(true);
@@ -426,25 +438,34 @@ jQuery(function ($) {
 
     constructor(
       public readonly 필터: t필터,
-      public readonly 구별키: (keyof t필터)[],
-      public readonly is개표단위: boolean
+      public readonly 구별키: (keyof t필터)[]
     ) {
       this.$표 = $("#table01");
-      [this.headerInfo, this.partyInfo] = this.parseHeader();
 
-      if (!is개표단위) {
+      if (필터.타입 === "개표진행상황") {
         this.thQuery1 = "thead tr:eq(0) th";
         this.thQuery2 = "tbody tr:eq(0) td";
         this.thOffset = 0;
-      } else {
+      } else if (필터.타입 === "개표단위별 개표결과") {
         this.thQuery1 = "thead tr:eq(0) th";
         this.thQuery2 = "thead tr:eq(1) th";
         this.thOffset = 4;
+      } else {
+        throw new Error("잘못된 타입입니다.");
       }
+
+      [this.headerInfo, this.partyInfo] = this.parseHeader();
     }
 
     protected getStoreKey(): string {
-      return JSON.stringify(this.필터);
+      const stores: Record<string, string> = {};
+      for (const [key, val] of Object.entries(this.필터)) {
+        if (!val) {
+          continue;
+        }
+        stores[key] = val;
+      }
+      return JSON.stringify(stores);
     }
 
     protected getGroupKey(): string {
@@ -466,7 +487,6 @@ jQuery(function ($) {
       let xpos = offset;
       $tds.each(function (idx) {
         const text = 기호제거(this.innerText);
-        console.log(text);
         if (offset == 0 && idx < 2) {
           xpos += 1;
           return;
@@ -501,7 +521,7 @@ jQuery(function ($) {
       this.$표.find(this.thQuery1).each(function () {
         let $th = $(this);
         let text = 기호제거($th.text()).trim();
-        console.log(text);
+        //console.log(text);
         const colspan = parseInt(subsNull($th.attr("colspan"), "1"));
 
         if (text !== "") {
@@ -525,12 +545,15 @@ jQuery(function ($) {
       const $표 = this.$표;
 
       const headerInfo = this.headerInfo;
-      //console.log('header', headerInfo, partyInfo);
+      console.log("header", headerInfo, this.partyInfo);
 
       const 총계: t총계 = { items: {}, 계: 0 };
 
-      for (const 소속 of Object.keys(정당코드)) {
-        총계.items[소속] = 0;
+      for (const 후보 of headerInfo.values()) {
+        if (invalidThKey.has(후보)) {
+          continue;
+        }
+        총계.items[후보] = 0;
       }
 
       $표.find("tbody tr:gt(0)").each(function () {
@@ -545,13 +568,13 @@ jQuery(function ($) {
           return;
         }
 
-        //console.log('투표구', 투표구);
+        //console.log("투표구", 투표구);
 
         if (!("개표율" in 투표구)) {
           투표구.개표율 = 100.0;
         }
 
-        if (투표구.개표율 === 0) {
+        if (투표구.개표율 <= 0.01) {
           return;
         }
 
@@ -559,27 +582,17 @@ jQuery(function ($) {
 
         총계.계 += 투표구.계 * invMult;
 
-        for (const 소속 of Object.keys(정당코드)) {
-          총계.items[소속] += Number(투표구[소속]) * invMult;
+        for (const 후보 of Object.keys(투표구)) {
+          if (invalidThKey.has(후보)) {
+            continue;
+          }
+          //console.log('후보', 후보, 투표구[후보], invMult);
+          총계.items[후보] += Number(투표구[후보]) * invMult;
         }
       });
 
       let date = new Date();
       총계.시간 = date.toLocaleTimeString("en-GB");
-
-      //console.log(총계);
-
-      localStorage.setItem(
-        "대통령지역_" + subsNull(필터.도시, "전체"),
-        JSON.stringify(총계)
-      );
-      if (필터.도시 !== "") {
-        const 지역목록 = JSON.parse(
-          subsNull(localStorage.getItem("대통령지역_목록"), "{}")
-        );
-        지역목록[필터.도시] = date;
-        localStorage.setItem("대통령지역_목록", JSON.stringify(지역목록));
-      }
 
       const groupKey = this.getGroupKey();
       const 지역목록 = JSON.parse(
@@ -589,6 +602,7 @@ jQuery(function ($) {
       지역목록[storeKey] = date;
       localStorage.setItem(`일반_목록_${groupKey}`, JSON.stringify(지역목록));
 
+      console.log('계', 총계);
       localStorage.setItem(`일반_${storeKey}`, JSON.stringify(총계));
     }
 
@@ -607,7 +621,10 @@ jQuery(function ($) {
       const 총계_사전: t총계 = { items: {}, 계: 0 };
       const 총계_본: t총계 = { items: {}, 계: 0 };
 
-      for (const 소속 of Object.keys(정당코드)) {
+      for (const 소속 of Object.values(headerInfo)) {
+        if (invalidThKey.has(소속)) {
+          continue;
+        }
         총계_사전.items[소속] = 0;
         총계_본.items[소속] = 0;
       }
@@ -646,9 +663,12 @@ jQuery(function ($) {
         const 총계_대상 = is사전투표 ? 총계_사전 : 총계_본;
 
         총계_대상.계 = 투표구.계 + subsNull(총계_대상.계, 0);
-        for (const 소속 of Object.keys(정당코드)) {
-          총계_대상.items[소속] =
-            Number(투표구[소속]) + subsNull(총계_대상.items[소속], 0);
+        for (const 후보 of Object.keys(투표구)) {
+          if (invalidThKey.has(후보)) {
+            continue;
+          }
+          총계_대상.items[후보] =
+            Number(투표구[후보]) + subsNull(총계_대상.items[후보], 0);
         }
       });
 
@@ -714,12 +734,8 @@ jQuery(function ($) {
         }
 
         this.$표.append(toTr(mergeObject(지역정보), headerInfo, 지역키));
-        for (const [정당, value] of Object.entries(지역정보.items)) {
-          if (!(정당 in 정당코드)) {
-            continue;
-          }
-
-          총계.items[정당] = value + subsNull(총계.items[정당], 0);
+        for (const [후보, value] of Object.entries(지역정보.items)) {
+          총계.items[후보] = value + subsNull(총계.items[후보], 0);
           총계.계 = value + subsNull(총계.계, 0);
         }
       }
@@ -770,10 +786,13 @@ jQuery(function ($) {
 
             세부계.계 = 세부.계 + subsNull(세부계.계, 0);
 
-            for (const 정당 of Object.keys(정당코드)) {
-              const value = 세부.items[정당];
-              세부계.items[정당] = value + subsNull(세부계.items[정당], 0);
-              총계.items[정당] = value + subsNull(총계.items[정당], 0);
+            for (const 후보 of Object.keys(세부.items)) {
+              if (invalidThKey.has(후보)) {
+                continue;
+              }
+              const value = 세부.items[후보];
+              세부계.items[후보] = value + subsNull(세부계.items[후보], 0);
+              총계.items[후보] = value + subsNull(총계.items[후보], 0);
               총계.계 = value + subsNull(총계.계, 0);
             }
           }
@@ -809,15 +828,16 @@ jQuery(function ($) {
     //다른 모드는 다른 코드 참고
     if (필터.선거명 == "시도지사선거") {
       if (필터.타입 == "개표진행상황") {
-        const obj = new ElectionV(필터, ["타입", "선거명", "도시"], true);
-        obj.parse일반();
+        const obj = new ElectionV(필터, ["선거명", "도시"]);
         if (필터.도시 == "") {
           obj.display개표단위();
           obj.display일반();
+        } else {
+          obj.parse일반();
         }
       }
       if (필터.타입 == "개표단위별개표결과") {
-        const obj = new ElectionV(필터, ["타입", "선거명", "도시"], true);
+        const obj = new ElectionV(필터, ["선거명", "도시"]);
         obj.display개표단위();
       }
     } else {
