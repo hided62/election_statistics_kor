@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         개표진행 지방선거 2022
 // @namespace    https://hided.net/
-// @version      0.21
+// @version      0.25
 // @description  개표 진행 상황을 보여줍니다. 각 시군구별 개별 개표율을 합산한 득표율을 보여줍니다. 광역시,도지사만 보여줍니다.
 // @author       Hide_D
 // @require      https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js
@@ -1219,8 +1219,18 @@ jQuery(function($1) {
     function mergeObject(계) {
         let result = {};
         for (const [key, value] of Object.entries(계.items)){
-            result[key] = value;
+            result[key] = Math.floor(Number(value));
         }
+        for (const [key1, value1] of Object.entries(계)){
+            if (typeof value1 === "string") {
+                result[key1] = value1;
+                continue;
+            }
+            if (typeof value1 === "number") {
+                result[key1] = Math.floor(value1);
+            }
+        }
+        console.log(result);
         return result;
     }
     const trToObj = function($tr, ruleset) {
@@ -1276,6 +1286,7 @@ jQuery(function($1) {
             for (const key of this.구별키){
                 storeKey.push(this.필터[key]);
             }
+            storeKey.pop();
             return storeKey.join("_");
         }
         extendRuleset($tds, ruleBase, partyInfo, offset) {
@@ -1372,7 +1383,10 @@ jQuery(function($1) {
             const groupKey = this.getGroupKey();
             const 지역목록 = JSON.parse((0, _subsNull).subsNull(localStorage.getItem(`일반_목록_${groupKey}`), "{}"));
             const storeKey = this.getStoreKey();
-            지역목록[storeKey] = date;
+            지역목록[storeKey] = [
+                Array.from(headerInfo.entries()),
+                date
+            ];
             localStorage.setItem(`일반_목록_${groupKey}`, JSON.stringify(지역목록));
             console.log("\uACC4", 총계);
             localStorage.setItem(`일반_${storeKey}`, JSON.stringify(총계));
@@ -1437,8 +1451,8 @@ jQuery(function($1) {
             for (const key of Object.keys(총계_사전)){
                 총계_사전.items[key] /= 사전개표율;
             }
-            for (const key1 of Object.keys(총계_본)){
-                총계_본.items[key1] /= 본개표율;
+            for (const key2 of Object.keys(총계_본)){
+                총계_본.items[key2] /= 본개표율;
             }
             let date = new Date();
             총계_사전.시간 = date.toLocaleTimeString("en-GB");
@@ -1447,17 +1461,19 @@ jQuery(function($1) {
             const groupKey = this.getGroupKey();
             const 지역목록 = JSON.parse((0, _subsNull).subsNull(localStorage.getItem(`개표단위_목록_${groupKey}`), "{}"));
             const storeKey = this.getStoreKey();
-            지역목록[storeKey] = date;
+            지역목록[storeKey] = [
+                Array.from(headerInfo.entries()),
+                date
+            ];
             localStorage.setItem(`개표단위_목록_${groupKey}`, JSON.stringify(지역목록));
             localStorage.setItem(`개표단위_사전_${storeKey}`, JSON.stringify(총계_사전));
             localStorage.setItem(`개표단위_본_${storeKey}`, JSON.stringify(총계_본));
         }
         display일반() {
-            const headerInfo = new Map(this.headerInfo);
-            headerInfo.set(1, "\uC2DC\uAC04");
             this.$표.append("<tr><td></td></tr>");
             const groupKey = this.getGroupKey();
-            const 지역목록 = JSON.parse((0, _subsNull).subsNull(localStorage.getItem(`일반_목록_${groupKey}`), "{}"));
+            const 지역목록 = JSON.parse(localStorage.getItem(`일반_목록_${groupKey}`) ?? "{}");
+            console.log("\uC9C0\uC5ED\uBAA9\uB85D", 지역목록);
             if (!지역목록) {
                 return;
             }
@@ -1465,25 +1481,49 @@ jQuery(function($1) {
                 items: {},
                 계: 0
             };
-            for (const 지역키 of Object.keys(지역목록)){
+            //let lastHeader: RuleSet | undefined = undefined;
+            for (const [지역키, [rawHeader]] of Object.entries(지역목록)){
+                const 지역구분 = JSON.parse(지역키);
+                const 지역이름 = [];
+                for (const key of this.구별키){
+                    if (key == "\uC120\uAC70\uBA85") {
+                        continue;
+                    }
+                    const value = 지역구분[key];
+                    if (!value) {
+                        continue;
+                    }
+                    지역이름.push(value);
+                }
+                const headerInfo = new Map(rawHeader);
+                headerInfo.set(1, "\uC2DC\uAC04");
+                //lastHeader = headerInfo;
                 const 지역정보 = JSON.parse(localStorage.getItem(`일반_${지역키}`) ?? "{}");
                 if (!지역정보) {
                     continue;
                 }
-                this.$표.append(toTr(mergeObject(지역정보), headerInfo, 지역키));
+                const tHeader = {};
+                for (const name of headerInfo.values()){
+                    tHeader[name] = name.split("_").join("<br>\n");
+                }
+                this.$표.append(toTr(tHeader, headerInfo, 지역이름.join("\n")));
+                this.$표.append(toTr(mergeObject(지역정보), headerInfo, 지역이름.join("\n")));
                 for (const [후보, value] of Object.entries(지역정보.items)){
-                    총계.items[후보] = value + (0, _subsNull).subsNull(총계.items[후보], 0);
-                    총계.계 = value + (0, _subsNull).subsNull(총계.계, 0);
+                    총계.items[후보] = (value + 총계.items[후보]) ?? 0;
+                    총계.계 = (value + 총계.계) ?? 0;
                 }
             }
             const 비율 = {};
             for (const [코드, value] of Object.entries(총계.items)){
                 비율[코드] = (value / 총계["\uACC4"] * 100).toFixed(2) + "%";
             }
-            this.$표.append(toTr(mergeObject(총계), headerInfo, "\uACC4"));
-            this.$표.append(toTr(비율, headerInfo, ""));
         }
-        display개표단위() {
+        /*
+      if (lastHeader) {
+        this.$표.append(toTr(mergeObject(총계), lastHeader, "계"));
+        //this.$표.append(toTr(비율, lastHeader, ""));
+      }
+      */ display개표단위() {
             const headerInfo = this.headerInfo;
             //const 지역목록 = JSON.parse(subsNull(localStorage.getItem('대통령지역_목록'), '{}'));
             const 총계 = {

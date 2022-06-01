@@ -390,8 +390,20 @@ jQuery(function ($) {
   function mergeObject(계: t총계): Record<string, string | number> {
     let result: Record<string, string | number> = {};
     for (const [key, value] of Object.entries(계.items)) {
-      result[key] = value;
+      result[key] = Math.floor(Number(value));
     }
+
+    for (const [key, value] of Object.entries(계)) {
+      if (typeof value === "string") {
+        result[key] = value;
+        continue;
+      }
+      if(typeof value === 'number'){
+        result[key] = Math.floor(value);
+      }
+    }
+
+    console.log(result);
 
     return result;
   }
@@ -473,6 +485,7 @@ jQuery(function ($) {
       for (const key of this.구별키) {
         storeKey.push(this.필터[key]);
       }
+      storeKey.pop();
       return storeKey.join("_");
     }
 
@@ -599,10 +612,10 @@ jQuery(function ($) {
         subsNull(localStorage.getItem(`일반_목록_${groupKey}`), "{}")
       );
       const storeKey = this.getStoreKey();
-      지역목록[storeKey] = date;
+      지역목록[storeKey] = [Array.from(headerInfo.entries()), date];
       localStorage.setItem(`일반_목록_${groupKey}`, JSON.stringify(지역목록));
 
-      console.log('계', 총계);
+      console.log("계", 총계);
       localStorage.setItem(`일반_${storeKey}`, JSON.stringify(총계));
     }
 
@@ -696,7 +709,7 @@ jQuery(function ($) {
         subsNull(localStorage.getItem(`개표단위_목록_${groupKey}`), "{}")
       );
       const storeKey = this.getStoreKey();
-      지역목록[storeKey] = date;
+      지역목록[storeKey] = [Array.from(headerInfo.entries()), date];
       localStorage.setItem(
         `개표단위_목록_${groupKey}`,
         JSON.stringify(지역목록)
@@ -710,22 +723,39 @@ jQuery(function ($) {
     }
 
     public display일반() {
-      const headerInfo = new Map(this.headerInfo);
-      headerInfo.set(1, "시간");
-
       this.$표.append("<tr><td></td></tr>");
 
       const groupKey = this.getGroupKey();
-      const 지역목록 = JSON.parse(
-        subsNull(localStorage.getItem(`일반_목록_${groupKey}`), "{}")
+      const 지역목록: Record<string, [[number, string][], string]> = JSON.parse(
+        localStorage.getItem(`일반_목록_${groupKey}`) ?? "{}"
       );
+      console.log("지역목록", 지역목록);
       if (!지역목록) {
         return;
       }
 
       const 총계: t총계 = { items: {}, 계: 0 };
 
-      for (const 지역키 of Object.keys(지역목록)) {
+      //let lastHeader: RuleSet | undefined = undefined;
+
+      for (const [지역키, [rawHeader]] of Object.entries(지역목록)) {
+        const 지역구분 = JSON.parse(지역키) as t필터;
+        const 지역이름: string[] = [];
+        for (const key of this.구별키) {
+          if (key == "선거명") {
+            continue;
+          }
+          const value = 지역구분[key];
+          if (!value) {
+            continue;
+          }
+          지역이름.push(value);
+        }
+
+        const headerInfo: RuleSet = new Map(rawHeader);
+        headerInfo.set(1, "시간");
+        //lastHeader = headerInfo;
+
         const 지역정보 = JSON.parse(
           localStorage.getItem(`일반_${지역키}`) ?? "{}"
         ) as t총계;
@@ -733,10 +763,18 @@ jQuery(function ($) {
           continue;
         }
 
-        this.$표.append(toTr(mergeObject(지역정보), headerInfo, 지역키));
+        const tHeader: Record<string, string> = {};
+        for (const name of headerInfo.values()) {
+          tHeader[name] = name.split("_").join("<br>\n");
+        }
+
+        this.$표.append(toTr(tHeader, headerInfo, 지역이름.join("\n")));
+        this.$표.append(
+          toTr(mergeObject(지역정보), headerInfo, 지역이름.join("\n"))
+        );
         for (const [후보, value] of Object.entries(지역정보.items)) {
-          총계.items[후보] = value + subsNull(총계.items[후보], 0);
-          총계.계 = value + subsNull(총계.계, 0);
+          총계.items[후보] = value + 총계.items[후보] ?? 0;
+          총계.계 = value + 총계.계 ?? 0;
         }
       }
 
@@ -744,8 +782,13 @@ jQuery(function ($) {
       for (const [코드, value] of Object.entries(총계.items)) {
         비율[코드] = ((value / 총계["계"]) * 100).toFixed(2) + "%";
       }
-      this.$표.append(toTr(mergeObject(총계), headerInfo, "계"));
-      this.$표.append(toTr(비율, headerInfo, ""));
+
+      /*
+      if (lastHeader) {
+        this.$표.append(toTr(mergeObject(총계), lastHeader, "계"));
+        //this.$표.append(toTr(비율, lastHeader, ""));
+      }
+      */
     }
 
     public display개표단위() {
