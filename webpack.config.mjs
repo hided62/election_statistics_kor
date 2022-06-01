@@ -19,7 +19,7 @@ const moduleInfos = {
   election2022_6: {
     name: "개표진행 지방선거 2022",
     namespace: "https://hided.net/",
-    version: "0.37",
+    version: "0.38",
     description:
       "개표 진행 상황을 보여줍니다. 각 시군구별 개별 개표율을 합산한 득표율을 보여줍니다. 광역시,도지사만 보여줍니다.",
     author: "Hide_D",

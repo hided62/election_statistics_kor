@@ -636,7 +636,10 @@ jQuery(function ($) {
       );
       const storeKey = this.getStoreKey();
       지역목록[storeKey] = [Array.from(headerInfo.entries()), date];
-      localStorage.setItem(`일반_목록_${categoryKey}`, JSON.stringify(지역목록));
+      localStorage.setItem(
+        `일반_목록_${categoryKey}`,
+        JSON.stringify(지역목록)
+      );
 
       console.log("계", 총계);
       localStorage.setItem(`일반_${storeKey}`, JSON.stringify(총계));
@@ -718,7 +721,6 @@ jQuery(function ($) {
       const 사전개표율 = 총계_사전.계 / 사전투표수;
       console.log(본투표수, 본개표율, 사전투표수, 사전개표율);
 
-
       for (const key of Object.keys(총계_사전.items)) {
         총계_사전.items[key] /= 사전개표율;
       }
@@ -744,10 +746,7 @@ jQuery(function ($) {
       지역목록[groupKey] = Array.from(headerInfo.entries());
 
       const 지역세부목록 = JSON.parse(
-        subsNull(
-          localStorage.getItem(`개표단위_세부목록_${groupKey}`),
-          "{}"
-        )
+        subsNull(localStorage.getItem(`개표단위_세부목록_${groupKey}`), "{}")
       );
       const storeKey = this.getStoreKey();
       지역세부목록[storeKey] = date;
@@ -865,10 +864,7 @@ jQuery(function ($) {
         headerInfo.set(1, "시간");
 
         const 지역세부목록 = JSON.parse(
-          subsNull(
-            localStorage.getItem(`개표단위_세부목록_${groupKey}`),
-            "{}"
-          )
+          subsNull(localStorage.getItem(`개표단위_세부목록_${groupKey}`), "{}")
         );
         if (!Object.keys(지역세부목록).length) {
           continue;
@@ -876,13 +872,21 @@ jQuery(function ($) {
 
         const 세부_사전_계: t총계 = { items: {}, 계: 0 };
         const 세부_본_계: t총계 = { items: {}, 계: 0 };
-        const 세부_전체_계: t총계 = { items: {}, 계: 0 };
+
 
         const tHeader: Record<string, string> = {};
         for (const name of headerInfo.values()) {
           tHeader[name] = name.split("_").join("<br>\n");
         }
         this.$표.append(toTr(tHeader, headerInfo, 지역이름.join("\n")));
+
+        let 총사전 = 0;
+        let 총본 = 0;
+
+        for (const [본, 사전] of Object.values(총투표수[지역이름[0]])) {
+          총사전 += 사전;
+          총본 += 본;
+        }
 
         for (const storeKey of Object.keys(지역세부목록)) {
           console.log("개표단위", storeKey);
@@ -900,15 +904,13 @@ jQuery(function ($) {
           for (const [세부계, 세부] of target) {
             console.log(세부계, 세부);
 
-            if(세부계.시간 === undefined){
+            if (세부계.시간 === undefined) {
               세부계.시간 = 세부.시간;
-            }
-            else if(세부.시간 !== undefined){
+            } else if (세부.시간 !== undefined) {
               세부계.시간 = 세부.시간 < 세부계.시간 ? 세부.시간 : 세부계.시간;
             }
 
             세부계.계 = 세부.계 + subsNull(세부계.계, 0);
-            세부_전체_계.계 = 세부.계 + subsNull(세부_전체_계.계, 0);
 
             for (const 후보 of Object.keys(세부.items)) {
               if (invalidThKey.has(후보)) {
@@ -916,9 +918,36 @@ jQuery(function ($) {
               }
               const value = 세부.items[후보];
               세부계.items[후보] = value + subsNull(세부계.items[후보], 0);
-              세부_전체_계.items[후보] =
-                value + subsNull(세부_전체_계.items[후보], 0);
             }
+          }
+        }
+
+        const 사전개표율 = 세부_사전_계.계 / 총사전;
+        const 본개표율 = 세부_본_계.계 / 총본;
+
+        console.log('사전개표 반영율', 사전개표율);
+        console.log('본개표 반영율', 본개표율);
+
+
+        const 세부_전체_계: t총계 = { items: {}, 계: 0 };
+
+        const sumAdjustTarget: [t총계, number][] = [
+          [세부_사전_계, 사전개표율],
+          [세부_본_계, 본개표율],
+        ];
+        for (const [세부계, 개표율] of sumAdjustTarget) {
+          console.log(세부계, 개표율);
+
+          세부계.계 /= 개표율;
+          세부_전체_계.계 += 세부계.계;
+
+          for (const 후보 of Object.keys(세부계.items)) {
+            if (invalidThKey.has(후보)) {
+              continue;
+            }
+
+            세부계.items[후보] /= 개표율;
+            세부_전체_계.items[후보] = 세부계.items[후보] +  subsNull(세부_전체_계.items[후보], 0);
           }
         }
 

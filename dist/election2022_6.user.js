@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         개표진행 지방선거 2022
 // @namespace    https://hided.net/
-// @version      0.35
+// @version      0.37
 // @description  개표 진행 상황을 보여줍니다. 각 시군구별 개별 개표율을 합산한 득표율을 보여줍니다. 광역시,도지사만 보여줍니다.
 // @author       Hide_D
 // @require      https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js
@@ -1584,15 +1584,17 @@ jQuery(function($1) {
                     items: {},
                     계: 0
                 };
-                const 세부_전체_계 = {
-                    items: {},
-                    계: 0
-                };
                 const tHeader = {};
                 for (const name of headerInfo.values()){
                     tHeader[name] = name.split("_").join("<br>\n");
                 }
                 this.$표.append(toTr(tHeader, headerInfo, 지역이름.join("\n")));
+                let 총사전 = 0;
+                let 총본 = 0;
+                for (const [본, 사전] of Object.values(총투표수[지역이름[0]])){
+                    총사전 += 사전;
+                    총본 += 본;
+                }
                 for (const storeKey of Object.keys(지역세부목록)){
                     console.log("\uAC1C\uD45C\uB2E8\uC704", storeKey);
                     const 세부_사전 = JSON.parse(localStorage.getItem(`개표단위_사전_${storeKey}`) ?? "{}");
@@ -1615,15 +1617,43 @@ jQuery(function($1) {
                             세부계.시간 = 세부.시간 < 세부계.시간 ? 세부.시간 : 세부계.시간;
                         }
                         세부계.계 = 세부.계 + (0, _subsNull).subsNull(세부계.계, 0);
-                        세부_전체_계.계 = 세부.계 + (0, _subsNull).subsNull(세부_전체_계.계, 0);
                         for (const 후보 of Object.keys(세부.items)){
                             if (invalidThKey.has(후보)) {
                                 continue;
                             }
                             const value = 세부.items[후보];
                             세부계.items[후보] = value + (0, _subsNull).subsNull(세부계.items[후보], 0);
-                            세부_전체_계.items[후보] = value + (0, _subsNull).subsNull(세부_전체_계.items[후보], 0);
                         }
+                    }
+                }
+                const 사전개표율 = 세부_사전_계.계 / 총사전;
+                const 본개표율 = 세부_본_계.계 / 총본;
+                console.log("\uC0AC\uC804\uAC1C\uD45C \uBC18\uC601\uC728", 사전개표율);
+                console.log("\uBCF8\uAC1C\uD45C \uBC18\uC601\uC728", 본개표율);
+                const 세부_전체_계 = {
+                    items: {},
+                    계: 0
+                };
+                const sumAdjustTarget = [
+                    [
+                        세부_사전_계,
+                        사전개표율
+                    ],
+                    [
+                        세부_본_계,
+                        본개표율
+                    ], 
+                ];
+                for (const [세부계, 개표율] of sumAdjustTarget){
+                    console.log(세부계, 개표율);
+                    세부계.계 /= 개표율;
+                    세부_전체_계.계 += 세부계.계;
+                    for (const 후보 of Object.keys(세부계.items)){
+                        if (invalidThKey.has(후보)) {
+                            continue;
+                        }
+                        세부계.items[후보] /= 개표율;
+                        세부_전체_계.items[후보] = 세부계.items[후보] + (0, _subsNull).subsNull(세부_전체_계.items[후보], 0);
                     }
                 }
                 this.$표.append(toTr(mergeObject(세부_사전_계), headerInfo, `(사전)`));
